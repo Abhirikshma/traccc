@@ -218,7 +218,7 @@ class kalman_fitter {
              it != track_states.rend(); ++it) {
 
             // Run kalman smoother
-            const detray::surface<detector_type> sf{m_detector,
+            const detray::tracking_surface<detector_type> sf{m_detector,
                                                     it->surface_link()};
             sf.template visit_mask<gain_matrix_smoother<algebra_type>>(
                 *it, *(it - 1));
@@ -235,7 +235,7 @@ class kalman_fitter {
 
         for (const auto& trk_state : track_states) {
 
-            const detray::surface<detector_type> sf{m_detector,
+            const detray::tracking_surface<detector_type> sf{m_detector,
                                                     trk_state.surface_link()};
             sf.template visit_mask<statistics_updater<algebra_type>>(fit_res,
                                                                      trk_state);
