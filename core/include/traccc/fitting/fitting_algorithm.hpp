@@ -135,7 +135,7 @@ class fitting_algorithm<traccc::triplet_fitter<stepper_t, navigator_t>>
             // Make a vector of track state
             auto& cands = track_candidates[i].items;
 
-            // std::cout << cands.size() << " measurements in this track" << std::endl;
+            std::cout << cands.size() << " measurements in this track" << std::endl;
 
             vecmem::vector<track_state<algebra_type>> input_states;
             input_states.reserve(cands.size());
@@ -153,13 +153,13 @@ class fitting_algorithm<traccc::triplet_fitter<stepper_t, navigator_t>>
                 // std::cout << "\thas material? " << meas_surface.has_material() << ", material: " << meas_surface.material_parameters(cand.local) << std::endl;
             }
 
-            // Make a fitter state
-            fitter.make_fitter(input_states);
+            // Initialize fitter
+            fitter.init_fitter(input_states);
 
             fitter.make_triplets();
 
             // Run fitter
-            // fitter.fit(seed_param, fitter_state);
+            fitter.fit();
 
             // output_states.push_back(
                 // std::move(fitter_state.m_fit_res),
