@@ -128,6 +128,7 @@ class fitting_algorithm<traccc::triplet_fitter<stepper_t, navigator_t>>
         for (std::size_t i = 0; i < n_tracks; i++) {
 
             std::cout << "\nFitting track # " << i << std::endl;
+            std::cout << "********************* \n";
 
             // Seed parameter
             // const auto& seed_param = track_candidates[i].header;
