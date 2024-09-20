@@ -101,6 +101,9 @@ class fitting_algorithm<traccc::triplet_fitter<stepper_t, navigator_t>>
     using bfield_type = typename traccc::triplet_fitter<stepper_t, navigator_t>::bfield_type;
     /// Configuration type
     using config_type = typename traccc::triplet_fitter<stepper_t, navigator_t>::config_type;
+    /// Vector type
+    template<typename T>
+    using vector_type = typename navigator_t::template vector_type<T>;
 
     /// Constructor for the fitting algorithm
     ///
@@ -130,9 +133,6 @@ class fitting_algorithm<traccc::triplet_fitter<stepper_t, navigator_t>>
             std::cout << "\nFitting track # " << i << std::endl;
             std::cout << "********************* \n";
 
-            // Seed parameter
-            // const auto& seed_param = track_candidates[i].header;
-
             // Make a vector of track state
             auto& cands = track_candidates[i].items;
 
@@ -142,29 +142,25 @@ class fitting_algorithm<traccc::triplet_fitter<stepper_t, navigator_t>>
             input_states.reserve(cands.size());
             for (auto& cand : cands) {
                 input_states.emplace_back(cand);
-                // std::cout << "\n\tlocal position of meas: " << cand.local[0] << ", " << cand.local[1] << std::endl;
-                // std::cout << "\tsurface: " << cand.surface_link << std::endl; 
-
-                // Surface on which this measurement is
-                detray::tracking_surface meas_surface(det, cand.surface_link);
-
-                // std::cout << "\tsensitive? " << meas_surface.is_sensitive() << std::endl;
-                // std::cout << "\thas material? " << meas_surface.has_material() << std::endl;
-                
-                // std::cout << "\thas material? " << meas_surface.has_material() << ", material: " << meas_surface.material_parameters(cand.local) << std::endl;
             }
+            
+            // Fitting result & vector of
+            // fitted track states
+            fitting_result<algebra_type> fit_res;
+            vector_type<track_state<algebra_type>> track_states;
 
             // Initialize fitter
             fitter.init_fitter(input_states);
 
+            // Make triplets of measurements
             fitter.make_triplets();
 
             // Run fitter
-            fitter.fit();
+            fitter.fit(fit_res, track_states);
 
-            // output_states.push_back(
-                // std::move(fitter_state.m_fit_res),
-                // std::move(fitter_state.m_fit_actor_state.m_track_states));
+            output_states.push_back(
+                std::move(fit_res),
+                std::move(track_states));
 
             // std::cout << "fitted chi2: " << output_states[i].header.chi2 << std::endl;
 

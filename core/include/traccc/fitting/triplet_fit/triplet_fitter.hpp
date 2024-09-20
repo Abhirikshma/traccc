@@ -118,6 +118,7 @@ namespace traccc {
 
             m_track_states = in_track_states;
 
+            // Clear triplets from the last track
             m_triplets.clear();
         }
 
@@ -453,10 +454,14 @@ namespace traccc {
 
         /// Helper function - Global Fit
         ///
-        /// Global fit of triplets
+        /// Global fit of hit triplets on track
         ///
+        /// @param fitting_res result of the fit for this track
+        /// @param track_states fitted track states at the measurement surfaces
+        /// (fitted state only at the first measurement surface is calculated)
         TRACCC_HOST_DEVICE
-        void do_global_fit() {
+        void do_global_fit(fitting_result<algebra_type>& fitting_res, 
+            vector_type<track_state<algebra_type>>& track_states) {
 
             // Allocate matrices with max possible sizes
             constexpr size_t max_dims = 3u;
@@ -481,19 +486,12 @@ namespace traccc {
             matrix_type<2u * max_ntrips, 2u * max_ntrips> D_MS = matrix_operator().template identity<2u * max_ntrips, 2u * max_ntrips>();
             matrix_type<max_ndirs, max_ndirs> D_hit = matrix_operator().template zero<max_ndirs, max_ndirs>();
 
-            // Position derivative matrices
-            // matrix_type<max_ntrips, max_ndirs> H_theta = matrix_operator().template zero<max_ntrips, max_ndirs>();
-            // matrix_type<max_ntrips, max_ndirs> H_phi = matrix_operator().template zero<max_ntrips, max_ndirs>();
+            // Position derivative matrix
             matrix_type<2u*max_ntrips, max_ndirs> H = matrix_operator().template zero<2u*max_ntrips, max_ndirs>();
             
-            std::cout << getter::element(rho, 0u, 0u) << std::endl;
-
-            
             // Fill matrices/vectors
-            std::cout << "Filling matrices/vectors: \n";
 
             for (size_t i = 0; i < N_triplets; ++i) {
-                std::cout << " Triplet " << i << std::endl;
 
                 const triplet& t_i = m_triplets[i];
 
@@ -595,6 +593,8 @@ namespace traccc {
 
             matrix_type<2u*max_ntrips, 2u*max_ntrips> K_inv = D_MS_inv + H * D_hit_inv * matrix_operator().transpose(H);
 
+            /*
+            // Visualize K_inv matrix
             std::cout << "K_inv:\n";
             for (size_t r = 0u; r < 2u*max_ntrips; ++r) {
                 for (size_t c = 0u; c < 2u*max_ntrips; ++c) {
@@ -602,7 +602,7 @@ namespace traccc {
                     std::cout << getter::element(K_inv, r, c) << " ";
                 }
                 std::cout << std::endl;
-            }
+            }*/
 
             // Matrix inversion
             matrix_type<2u*max_ntrips, 2u*max_ntrips> K = matrix_operator().inverse(K_inv);    
@@ -618,38 +618,38 @@ namespace traccc {
 
             scalar chi2 = getter::element(psiT_K_psi, 0u, 0u) - (c_3D * c_3D) / (sigma_c_3D * sigma_c_3D); 
 
-            std::cout << "Global fit: c_3D " << c_3D << "  sigma_c_3D " << sigma_c_3D << "  chi2 " << chi2 << std::endl;
+            std::cout << "\nGlobal fit: c_3D " << c_3D << "  sigma_c_3D " << sigma_c_3D << "  chi2 " << chi2 << std::endl;
 
+            fitting_res.chi2 = chi2;
+            track_states.emplace_back();
             
         }
         
         /// Run the fitter
+        ///
+        /// Main fitting function
         /// 
-        /// 
-        TRACCC_HOST_DEVICE void fit() {
-
-            // main function, calls all other functions
-
-            // make triplets -> can be a separate function
-            // e.g. fitter_state for Kalman
-
-            // calculate triplet parameters
-
-            // calculate position derivatives
-
-            // global fit
+        /// @param fitting_res result of the fit for this track
+        /// @param track_states fitted track states at the measurement surfaces
+        /// (fitted state only at the first measurement surface is calculated)
+        TRACCC_HOST_DEVICE void fit(fitting_result<algebra_type>& fitting_res, 
+            vector_type<track_state<algebra_type>>& track_states) {
 
             unsigned triplet_idx = 0;
 
             for (triplet& t : m_triplets) {
+                
                 std::cout << "Triplet " << triplet_idx << "\n";
+                
                 linearize_triplet(t);
                 calculate_pos_derivs(t);
+                
                 ++triplet_idx;
+                
                 // break; // just one for debugging
             }
 
-            do_global_fit();
+            do_global_fit(fitting_res, track_states);
 
         }
         
