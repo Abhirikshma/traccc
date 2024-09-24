@@ -24,6 +24,8 @@
 #include "detray/propagator/actors/pointwise_material_interactor.hpp"
 #include "detray/propagator/propagator.hpp"
 
+#include "detray/tracks/bound_track_parameters.hpp"
+
 // System include(s).
 #include <limits>
 #include <iostream>
@@ -85,7 +87,7 @@ namespace traccc {
             triplet(const point3& hit_0, const point3& hit_1, const point3& hit_2)
                 : m_hit_0(hit_0), m_hit_1(hit_1), m_hit_2(hit_2) { }
 
-            // positions of three hits
+            // global positions of three hits
             point3 m_hit_0;
             point3 m_hit_1;
             point3 m_hit_2;
@@ -483,8 +485,11 @@ namespace traccc {
             matrix_type<2u * max_ntrips, 1u> psi = matrix_operator().template zero<2u * max_ntrips, 1u>();
             
             // Scattering & hit precision matrices
+            // (directly the covariance matrix D_hit_inv, 
+            // since D_hit is never used as it is. Maybe
+            // this can also be done for D_MS ? )
             matrix_type<2u * max_ntrips, 2u * max_ntrips> D_MS = matrix_operator().template identity<2u * max_ntrips, 2u * max_ntrips>();
-            matrix_type<max_ndirs, max_ndirs> D_hit = matrix_operator().template zero<max_ndirs, max_ndirs>();
+            matrix_type<max_ndirs, max_ndirs> D_hit_inv = matrix_operator().template zero<max_ndirs, max_ndirs>();
 
             // Position derivative matrix
             matrix_type<2u*max_ntrips, max_ndirs> H = matrix_operator().template zero<2u*max_ntrips, max_ndirs>();
@@ -542,47 +547,35 @@ namespace traccc {
             
 
                 // 1st Hit in triplet
-                getter::element(D_hit, i * max_dims, i * max_dims) = 1.f / t_i.m_meas[0u].variance[0u];
-                getter::element(D_hit, i * max_dims + 1u, i * max_dims + 1u) = 1.f / t_i.m_meas[0u].variance[1u];
-                getter::element(D_hit, i * max_dims + 2u, i * max_dims + 2u) = 1.f; // dim does not exist
+                getter::element(D_hit_inv, i * max_dims, i * max_dims) = t_i.m_meas[0u].variance[0u];
+                getter::element(D_hit_inv, i * max_dims + 1u, i * max_dims + 1u) = t_i.m_meas[0u].variance[1u];
+                // getter::element(D_hit_inv, i * max_dims + 2u, i * max_dims + 2u) = 0.f; // dim does not exist for measurement
 
                 // Only use the other two hits
                 // for the last triplet to prevent
-                // reassigning elements in marix
+                // reassigning elements in matrix
                 if (i == N_triplets - 1u) {
                     // 2nd hit
-                    getter::element(D_hit, (i + 1u) * max_dims, (i + 1u) * max_dims) = 1.f / t_i.m_meas[1u].variance[0u];
-                    getter::element(D_hit, (i + 1u) * max_dims + 1u, (i + 1u) * max_dims + 1u) = 1.f / t_i.m_meas[1u].variance[1u];
-                    getter::element(D_hit, (i + 1u) * max_dims + 2u, (i + 1u) * max_dims + 2u) = 1.f;
+                    getter::element(D_hit_inv, (i + 1u) * max_dims, (i + 1u) * max_dims) = 1.f / t_i.m_meas[1u].variance[0u];
+                    getter::element(D_hit_inv, (i + 1u) * max_dims + 1u, (i + 1u) * max_dims + 1u) = 1.f / t_i.m_meas[1u].variance[1u];
+                    // getter::element(D_hit_inv, (i + 1u) * max_dims + 2u, (i + 1u) * max_dims + 2u) = 0.f;
 
                     // 3rd hit
-                    getter::element(D_hit, (i + 2u) * max_dims, (i + 2u) * max_dims) = 1.f / t_i.m_meas[2u].variance[0u];
-                    getter::element(D_hit, (i + 2u) * max_dims + 1u, (i + 2u) * max_dims + 1u) = 1.f / t_i.m_meas[2u].variance[1u];
-                    getter::element(D_hit, (i + 2u) * max_dims + 2u, (i + 2u) * max_dims + 2u) = 1.f;
+                    getter::element(D_hit_inv, (i + 2u) * max_dims, (i + 2u) * max_dims) = 1.f / t_i.m_meas[2u].variance[0u];
+                    getter::element(D_hit_inv, (i + 2u) * max_dims + 1u, (i + 2u) * max_dims + 1u) = 1.f / t_i.m_meas[2u].variance[1u];
+                    // getter::element(D_hit_inv, (i + 2u) * max_dims + 2u, (i + 2u) * max_dims + 2u) = 0.f;
                 }
 
             } // done filling
 
 
-            // Invert D_MS & D_hit diagonal matrices
-            // (make diagonal elements corresponding to
-            // unused 'objects' 1, to allow inversion)
+            // Invert D_MS diagonal matrix
 
             matrix_type<2u*max_ntrips, 2u*max_ntrips> D_MS_inv = matrix_operator().template identity<2u*max_ntrips, 2u*max_ntrips>();
             for (size_t j = 0u; j < 2u*max_ntrips; ++j) {
 
                 // D_MS initialized as identity matrix
                 getter::element(D_MS_inv, j, j) = 1.f / getter::element(D_MS, j, j); 
-            }
-
-            matrix_type<max_ndirs, max_ndirs> D_hit_inv = matrix_operator().template zero<max_ndirs, max_ndirs>();
-
-            for (size_t j = 0u; j < max_ndirs; ++j) {
-                
-                // Leave 0 elements as it is
-                // float comparison can be improved ?
-                if (getter::element(D_hit, j , j) == 0.f) continue;
-                getter::element(D_hit_inv, j, j) = 1.f / getter::element(D_hit, j, j);
             }
 
             // Triplet precision matrix
@@ -611,6 +604,7 @@ namespace traccc {
             matrix_type<1u, 1u> den = matrix_operator().transpose(rho) * K * rho;
             matrix_type<1u, 1u> psiT_K_psi = matrix_operator().transpose(psi) * K * psi;
 
+            // Calculation of curvature, uncertainty, fit quality
 
             scalar c_3D = getter::element(num, 0u, 0u) / getter::element(den, 0u, 0u);
 
@@ -620,8 +614,82 @@ namespace traccc {
 
             std::cout << "\nGlobal fit: c_3D " << c_3D << "  sigma_c_3D " << sigma_c_3D << "  chi2 " << chi2 << std::endl;
 
+            // Calculation of hit position shifts, covariance matrix
+
+            matrix_type<2u*max_ntrips, 2u*max_ntrips> K_rho = K - (1.f / getter::element(den, 0u, 0u)) * K * rho * matrix_operator().transpose(rho) * K;
+
+            matrix_type<max_ndirs, 1u> delta_fit = D_hit_inv * matrix_operator().transpose(H) * K_rho * psi;
+
+            std::cout << "posn. shift hit 0: " << getter::element(delta_fit, 0u, 0u) << " " << getter::element(delta_fit, 1u, 0u) << " " << getter::element(delta_fit, 2u, 0u) << std::endl; 
+
+            // Track parameters at the first measurement surface
+            bound_track_parameters fit_params{};
+
+            // Track state at the first measurement surface
+            auto fitted_state = [&fit_params, &delta_fit, &c_3D](
+                const vector_type<track_state<algebra_type>>& input_states,
+                const vector_type<triplet>& triplets,
+                const detector_type& detector,
+                const bfield_type& field) -> track_state<algebra_type> {
+                
+                auto m0 = input_states[0].get_measurement();
+                
+                point2 loc0{m0.local[0], m0.local[1]};
+                point2 loc0_post_fit = loc0 + point2{getter::element(delta_fit, 0u, 0u), getter::element(delta_fit, 1u, 0u)};
+
+                detray::tracking_surface sf0(detector, m0.surface_link);
+
+                point3 glob0 = sf0.bound_to_global({}, loc0_post_fit, {});
+
+                auto m1 = input_states[1].get_measurement();
+
+                point2 loc1{m1.local[0], m1.local[1]};
+                point2 loc1_post_fit = loc1 + point2{getter::element(delta_fit, 3u, 0u), getter::element(delta_fit, 4u, 0u)};
+
+                detray::tracking_surface sf1(detector, m1.surface_link);
+
+                point3 glob1 = sf1.bound_to_global({}, loc1_post_fit, {});
+
+                point3 r01 = glob1 - glob0;
+
+                // Small bending approximation
+                scalar bending_angle = c_3D * getter::norm(r01);
+
+                // Magnetic field at first measurement
+                vector3 B_vec = field.at(triplets[0].m_hit_0);
+
+                // Momentum - TODO: B[2] or norm(B) ?
+                scalar p = 0.3f * B_vec[2] / (c_3D * unit<scalar>::T); 
+                
+                // Set parameters
+                const scalar q = 1.f;
+                detray::bound_parameters_vector<algebra_type> params_vec{};
+                params_vec.set_bound_local(loc0);
+                params_vec.set_phi((getter::phi(r01) + 0.5f * bending_angle));
+                params_vec.set_theta(getter::theta(r01));
+                params_vec.set_qop(q / p);
+                params_vec.set_time(0.f);
+
+                // scalar phi = getter::phi(r01) + 0.5f * bending_angle;
+                // scalar theta = getter::theta(r01);
+
+                // Parameters vector
+                // bound_vector params_vec{loc0, phi, theta, q / p, 0.f};
+                fit_params.set_vector(params_vec);
+
+                // Make a track state
+                track_state<algebra_type> output{m0};
+                output.smoothed().set_vector(params_vec);
+                
+                return output;
+
+            }(m_track_states, m_triplets, m_detector, m_field);
+
             fitting_res.chi2 = chi2;
-            track_states.emplace_back();
+            fitting_res.fit_params = fit_params;
+
+            fitted_state.smoothed_chi2() = chi2;
+            track_states.emplace_back(fitted_state);
             
         }
         
