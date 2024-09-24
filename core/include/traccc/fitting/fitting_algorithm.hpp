@@ -13,7 +13,10 @@
 #include "traccc/edm/track_state.hpp"
 #include "traccc/fitting/fitting_config.hpp"
 #include "traccc/fitting/kalman_filter/kalman_fitter.hpp"
+#include "traccc/fitting/triplet_fit/triplet_fitter.hpp"
 #include "traccc/utils/algorithm.hpp"
+
+#include <iostream>
 
 namespace traccc {
 
@@ -68,7 +71,7 @@ class fitting_algorithm
             }
 
             // Make a fitter state
-            typename fitter_t::state fitter_state(std::move(input_states));
+            typename fitter_t::state fitter_state(input_states);
 
             // Run fitter
             fitter.fit(seed_param, fitter_state);
@@ -76,6 +79,91 @@ class fitting_algorithm
             output_states.push_back(
                 std::move(fitter_state.m_fit_res),
                 std::move(fitter_state.m_fit_actor_state.m_track_states));
+        }
+
+        return output_states;
+    }
+
+    /// Config object
+    config_type m_cfg;
+};
+
+/// Partial specialization for Triplet Fitter
+template<typename stepper_t, typename navigator_t>
+class fitting_algorithm<traccc::triplet_fitter<stepper_t, navigator_t>>
+    : public algorithm<track_state_container_types::host(
+          const typename traccc::triplet_fitter<stepper_t, navigator_t>::detector_type&,
+          const typename traccc::triplet_fitter<stepper_t, navigator_t>::bfield_type&,
+          const typename track_candidate_container_types::host&)> {
+
+    public:
+    using algebra_type = typename traccc::triplet_fitter<stepper_t, navigator_t>::algebra_type;
+    using bfield_type = typename traccc::triplet_fitter<stepper_t, navigator_t>::bfield_type;
+    /// Configuration type
+    using config_type = typename traccc::triplet_fitter<stepper_t, navigator_t>::config_type;
+    /// Vector type
+    template<typename T>
+    using vector_type = typename navigator_t::template vector_type<T>;
+
+    /// Constructor for the fitting algorithm
+    ///
+    /// @param cfg  Configuration object
+    fitting_algorithm(const config_type& cfg) : m_cfg(cfg) {}
+
+    /// Run the algorithm
+    ///
+    /// @param track_candidates the candidate measurements from track finding
+    /// @return the container of the fitted track parameters
+    track_state_container_types::host operator()(
+        const typename traccc::triplet_fitter<stepper_t, navigator_t>::detector_type& det,
+        const typename traccc::triplet_fitter<stepper_t, navigator_t>::bfield_type& field,
+        const typename track_candidate_container_types::host& track_candidates)
+        const override {
+
+        traccc::triplet_fitter<stepper_t, navigator_t> fitter(det, field, m_cfg);
+
+        track_state_container_types::host output_states;
+
+        // The number of tracks
+        std::size_t n_tracks = track_candidates.size();
+
+        // Iterate over tracks
+        for (std::size_t i = 0; i < n_tracks; i++) {
+
+            std::cout << "\nFitting track # " << i << std::endl;
+            std::cout << "********************* \n";
+
+            // Make a vector of track state
+            auto& cands = track_candidates[i].items;
+
+            std::cout << cands.size() << " measurements in this track" << std::endl;
+
+            vecmem::vector<track_state<algebra_type>> input_states;
+            input_states.reserve(cands.size());
+            for (auto& cand : cands) {
+                input_states.emplace_back(cand);
+            }
+            
+            // Fitting result & vector of
+            // fitted track states
+            fitting_result<algebra_type> fit_res;
+            vector_type<track_state<algebra_type>> track_states;
+
+            // Initialize fitter
+            fitter.init_fitter(input_states);
+
+            // Make triplets of measurements
+            fitter.make_triplets();
+
+            // Run fitter
+            fitter.fit(fit_res, track_states);
+
+            output_states.push_back(
+                std::move(fit_res),
+                std::move(track_states));
+
+            // std::cout << "fitted chi2: " << output_states[i].header.chi2 << std::endl;
+
         }
 
         return output_states;

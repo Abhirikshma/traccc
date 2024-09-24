@@ -107,7 +107,7 @@ int seq_run(const traccc::opts::input_data& input_opts,
     using finding_algorithm =
         traccc::finding_algorithm<stepper_type, navigator_type>;
     using fitting_algorithm = traccc::fitting_algorithm<
-        traccc::kalman_fitter<stepper_type, navigator_type>>;
+        traccc::triplet_fitter<stepper_type, navigator_type>>;
 
     // Constant B field for the track finding and fitting
     const traccc::vector3 field_vec = {0.f, 0.f,
@@ -332,6 +332,8 @@ int seq_run(const traccc::opts::input_data& input_opts,
 // The main routine
 //
 int main(int argc, char* argv[]) {
+
+    std::cout << "**** In the sequential example ****" << std::endl;
 
     // Program options.
     traccc::opts::detector detector_opts;
