@@ -50,7 +50,7 @@ namespace traccc {
 
         // Vector type
         template <typename T>
-        using vector_type = typename navigator_t::template vector_type<T>;
+        using vector_type = typename detector_type::template vector_type<T>;
 
         // Configuration type
         using config_type = fitting_config;
@@ -93,10 +93,10 @@ namespace traccc {
             point3 m_hit_2;
 
             // triplet parameters
-            scalar m_phi_0;
-            scalar m_theta_0;
-            scalar m_rho_phi;
-            scalar m_rho_theta;
+            scalar m_phi_0{};
+            scalar m_theta_0{};
+            scalar m_rho_phi{};
+            scalar m_rho_theta{};
 
             // hit position derivatives
             vecmem::vector<scalar> m_h_thet;
@@ -107,8 +107,8 @@ namespace traccc {
             std::array<measurement, 3u> m_meas;
             
             // Estimated values
-            scalar m_sigma_MS; // MS uncertainty
-            scalar m_theta; // Polar angle 
+            scalar m_sigma_MS{}; // MS uncertainty
+            scalar m_theta{}; // Polar angle 
 
         };
 
@@ -163,7 +163,7 @@ namespace traccc {
 
                 std::cout << glob_3d_0[0] << " " << glob_3d_0[1] << " " << glob_3d_0[2] << std::endl;
 
-                // Store triplet
+                // Make triplet
                 triplet t(glob_3d_0, glob_3d_1, glob_3d_2);
                 
                 // measurements copied here
@@ -245,15 +245,15 @@ namespace traccc {
             // Parameters of the arc segments
             
             // Azimuthal (bending) angles
-            scalar phi_1C = 2.f * std::asin(0.5f * d_01 * c_perp);
-            scalar phi_2C = 2.f * std::asin(0.5f * d_12 * c_perp);
+            scalar phi_1C = 2.f * math::asin(0.5f * d_01 * c_perp);
+            scalar phi_2C = 2.f * math::asin(0.5f * d_12 * c_perp);
             
             scalar phi2_1C = phi_1C * phi_1C;
             scalar phi2_2C = phi_2C * phi_2C;
             
-            scalar sin2_0p5_phi1C = sin(0.5f * phi_1C);
+            scalar sin2_0p5_phi1C = math::sin(0.5f * phi_1C);
             sin2_0p5_phi1C *= sin2_0p5_phi1C;
-            scalar sin2_0p5_phi2C = sin(0.5f * phi_2C);
+            scalar sin2_0p5_phi2C = math::sin(0.5f * phi_2C);
             sin2_0p5_phi2C *= sin2_0p5_phi2C;
 
             // 3D curvatures
@@ -267,9 +267,9 @@ namespace traccc {
             scalar theta_2C = std::acos(z_12 * c_3D_2C / phi_2C);
             t.m_theta = 0.5f * (theta_1C + theta_2C); // estimate polar angle
 
-            vector2 tangent2D_norm = sin(t.m_theta) / getter::norm(tangent2D) * tangent2D;
+            vector2 tangent2D_norm = math::sin(t.m_theta) / getter::norm(tangent2D) * tangent2D;
             // track tangent normalized to 1
-            vector3 tangent3D{tangent2D_norm[0], tangent2D_norm[1], static_cast<scalar>(cos(t.m_theta))};
+            vector3 tangent3D{tangent2D_norm[0], tangent2D_norm[1], math::cos(t.m_theta)};
 
             // Estimate MS-uncertainty
             
@@ -287,10 +287,10 @@ namespace traccc {
 
             
             // Index parameters
-            scalar n_1C = (d_01*d_01 + 4.f * z_01*z_01 * sin2_0p5_phi1C / phi2_1C) / (0.25f * d_01*d_01 * phi_1C * sin(phi_1C)/sin2_0p5_phi1C + 4.f * z_01*z_01 * sin2_0p5_phi1C/phi2_1C);
-            scalar n_2C = (d_12*d_12 + 4.f * z_12*z_12 * sin2_0p5_phi2C / phi2_2C) / (0.25f * d_12*d_12 * phi_2C * sin(phi_2C)/sin2_0p5_phi2C + 4.f * z_12*z_12 * sin2_0p5_phi2C/phi2_2C);
+            scalar n_1C = (d_01*d_01 + 4.f * z_01*z_01 * sin2_0p5_phi1C / phi2_1C) / (0.25f * d_01*d_01 * phi_1C * math::sin(phi_1C)/sin2_0p5_phi1C + 4.f * z_01*z_01 * sin2_0p5_phi1C/phi2_1C);
+            scalar n_2C = (d_12*d_12 + 4.f * z_12*z_12 * sin2_0p5_phi2C / phi2_2C) / (0.25f * d_12*d_12 * phi_2C * math::sin(phi_2C)/sin2_0p5_phi2C + 4.f * z_12*z_12 * sin2_0p5_phi2C/phi2_2C);
 
-            auto cot = [](scalar angle) { return cos(angle)/sin(angle); };
+            auto cot = [](scalar angle) { return math::cos(angle)/math::sin(angle); };
             // Triplet parameters
             t.m_phi_0 = 0.5f * (n_1C * phi_1C + n_2C * phi_2C);
             t.m_theta_0 = theta_2C - theta_1C + ((1.f -  n_2C) * cot(theta_2C) - (1.f - n_1C) * cot(theta_1C));
@@ -323,7 +323,7 @@ namespace traccc {
             scalar d_01 = getter::norm(x_01);
             scalar d_12 = getter::norm(x_12);
 
-            phi_0 = std::asin(cross_2d_z(x_01, x_12) / (d_01 * d_12));
+            phi_0 = math::asin(cross_2d_z(x_01, x_12) / (d_01 * d_12));
             // std::cout << "Quick linearize:" << std::endl;
             // std::cout << "\tphi_0 " << phi_0 << std::endl;
 
@@ -334,7 +334,7 @@ namespace traccc {
             vector2 x_01_L = x_1_L - x_0_L;
             vector2 x_12_L = x_2_L - x_1_L;
 
-            theta_0 = std::asin(cross_2d_z(x_01_L, x_12_L) / (getter::norm(x_01_L) * getter::norm(x_12_L)));
+            theta_0 = math::asin(cross_2d_z(x_01_L, x_12_L) / (getter::norm(x_01_L) * getter::norm(x_12_L)));
             // std::cout << "\ttheta_0 " << theta_0 << std::endl;
         }
 
@@ -623,7 +623,7 @@ namespace traccc {
             std::cout << "posn. shift hit 0: " << getter::element(delta_fit, 0u, 0u) << " " << getter::element(delta_fit, 1u, 0u) << " " << getter::element(delta_fit, 2u, 0u) << std::endl; 
 
             // Track parameters at the first measurement surface
-            bound_track_parameters fit_params{};
+            detray::bound_track_parameters<algebra_type> fit_params{};
 
             // Track state at the first measurement surface
             auto fitted_state = [&fit_params, &delta_fit, &c_3D](
@@ -670,16 +670,15 @@ namespace traccc {
                 params_vec.set_qop(q / p);
                 params_vec.set_time(0.f);
 
-                // scalar phi = getter::phi(r01) + 0.5f * bending_angle;
-                // scalar theta = getter::theta(r01);
+                std::cout << "p " << p << std::endl;
 
                 // Parameters vector
                 // bound_vector params_vec{loc0, phi, theta, q / p, 0.f};
-                fit_params.set_vector(params_vec);
+                fit_params.set_vector(params_vec.vector());
 
                 // Make a track state
                 track_state<algebra_type> output{m0};
-                output.smoothed().set_vector(params_vec);
+                output.smoothed().set_vector(params_vec.vector());
                 
                 return output;
 

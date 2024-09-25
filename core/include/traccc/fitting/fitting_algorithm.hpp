@@ -101,9 +101,6 @@ class fitting_algorithm<traccc::triplet_fitter<stepper_t, navigator_t>>
     using bfield_type = typename traccc::triplet_fitter<stepper_t, navigator_t>::bfield_type;
     /// Configuration type
     using config_type = typename traccc::triplet_fitter<stepper_t, navigator_t>::config_type;
-    /// Vector type
-    template<typename T>
-    using vector_type = typename navigator_t::template vector_type<T>;
 
     /// Constructor for the fitting algorithm
     ///
@@ -147,7 +144,7 @@ class fitting_algorithm<traccc::triplet_fitter<stepper_t, navigator_t>>
             // Fitting result & vector of
             // fitted track states
             fitting_result<algebra_type> fit_res;
-            vector_type<track_state<algebra_type>> track_states;
+            vecmem::vector<track_state<algebra_type>> track_states;
 
             // Initialize fitter
             fitter.init_fitter(input_states);
