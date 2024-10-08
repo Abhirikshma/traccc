@@ -159,7 +159,8 @@ class fitting_algorithm<traccc::triplet_fitter<stepper_t, navigator_t>>
                 std::move(fit_res),
                 std::move(track_states));
 
-            // std::cout << "fitted chi2: " << output_states[i].header.chi2 << std::endl;
+            std::cout << "fitted chi2: " << output_states[i].header.chi2 << std::endl;
+            std::cout << "N(fitted states): " << output_states[i].items.size() << std::endl;
 
         }
 

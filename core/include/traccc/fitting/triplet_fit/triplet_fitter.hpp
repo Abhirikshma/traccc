@@ -622,16 +622,17 @@ namespace traccc {
 
             std::cout << "posn. shift hit 0: " << getter::element(delta_fit, 0u, 0u) << " " << getter::element(delta_fit, 1u, 0u) << " " << getter::element(delta_fit, 2u, 0u) << std::endl; 
 
-            // Track parameters at the first measurement surface
-            detray::bound_track_parameters<algebra_type> fit_params{};
 
-            // Track state at the first measurement surface
-            auto fitted_state = [&fit_params, &delta_fit, &c_3D](
+            // Track parameters at the first measurement surface
+            auto fitted_params = [&delta_fit, &c_3D](
                 const vector_type<track_state<algebra_type>>& input_states,
                 const vector_type<triplet>& triplets,
                 const detector_type& detector,
-                const bfield_type& field) -> track_state<algebra_type> {
+                const bfield_type& field) -> detray::bound_parameters_vector<algebra_type> {
                 
+                // Get the (post-fit) global positions of 
+                // the first and the second measurement
+
                 auto m0 = input_states[0].get_measurement();
                 
                 point2 loc0{m0.local[0], m0.local[1]};
@@ -652,43 +653,72 @@ namespace traccc {
 
                 point3 r01 = glob1 - glob0;
 
-                // Small bending approximation
+                // Calculation of track parameters at the first
+                // measurement with the first two hits assuming
+                // small bending
+
                 scalar bending_angle = c_3D * getter::norm(r01);
 
                 // Magnetic field at first measurement
                 vector3 B_vec = field.at(triplets[0].m_hit_0);
 
-                // Momentum - TODO: B[2] or norm(B) ?
-                scalar p = 0.3f * B_vec[2] / (c_3D * unit<scalar>::T); 
+                // Momentum - TODO: handling of magnetic field
+                // Units: B [T], p [MeV] 
+                scalar p = 0.3f * getter::norm(B_vec) / (c_3D * unit<scalar>::T) * unit<scalar>::MeV; 
+
+                // Wrap angle between -Pi and Pi
+                auto wrap_pi_mpi = [](scalar angle) -> scalar {
+                    
+                    if (angle > static_cast<scalar>(M_PI))
+                        return angle - 2.f * static_cast<scalar>(M_PI);
+                    
+                    else if (angle < -1.f * static_cast<scalar>(M_PI))
+                        return angle + 2.f * static_cast<scalar>(M_PI);
+                    
+                    else
+                        return angle;
+                };
                 
                 // Set parameters
                 const scalar q = 1.f;
                 detray::bound_parameters_vector<algebra_type> params_vec{};
                 params_vec.set_bound_local(loc0);
-                params_vec.set_phi((getter::phi(r01) + 0.5f * bending_angle));
+                params_vec.set_phi(wrap_pi_mpi(getter::phi(r01) + 0.5f * bending_angle));
                 params_vec.set_theta(getter::theta(r01));
                 params_vec.set_qop(q / p);
                 params_vec.set_time(0.f);
 
                 std::cout << "p " << p << std::endl;
-
-                // Parameters vector
-                // bound_vector params_vec{loc0, phi, theta, q / p, 0.f};
-                fit_params.set_vector(params_vec.vector());
-
-                // Make a track state
-                track_state<algebra_type> output{m0};
-                output.smoothed().set_vector(params_vec.vector());
                 
-                return output;
+                return params_vec;
 
             }(m_track_states, m_triplets, m_detector, m_field);
 
             fitting_res.chi2 = chi2;
-            fitting_res.fit_params = fit_params;
+            fitting_res.fit_params.set_vector(fitted_params.vector());
+            fitting_res.ndf = [](const vector_type<track_state<algebra_type>>& states)
+            -> scalar {
+                
+                // Number of degrees of freedom
+                // = sum of number of dimensions
+                // of measurements - number of
+                // track parameter dimensions.
 
-            fitted_state.smoothed_chi2() = chi2;
-            track_states.emplace_back(fitted_state);
+                scalar sum_dims = 0;
+                for (const track_state<algebra_type>& s : states) {
+                    sum_dims += s.get_measurement().meas_dim;
+                }
+
+                return (sum_dims - 5.f);
+            }(m_track_states);
+
+            // Only the smoothed parameters
+            // at the first measurement are 
+            // used for performance plots
+            // see fitting_performance_writer
+            track_states[0].smoothed_chi2() = chi2;
+            track_states[0].smoothed().set_vector(fitted_params.vector());
+            track_states[0].is_hole = false;
             
         }
         
@@ -715,7 +745,16 @@ namespace traccc {
                 
                 // break; // just one for debugging
             }
+            
+            // Passing through the input track
+            // states (measurements) to the output
+            for (const auto& state : m_track_states) {
+                track_states.push_back(state);
+            }
 
+            // Only the smoothed parameter
+            // at the first measurement is
+            // updated here in the vector.
             do_global_fit(fitting_res, track_states);
 
         }
