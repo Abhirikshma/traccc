@@ -10,6 +10,7 @@
 // Project include(s).
 #include "traccc/definitions/common.hpp"
 #include "traccc/fitting/kalman_filter/kalman_fitter.hpp"
+#include "traccc/fitting/triplet_fit/triplet_fitter.hpp"
 
 // detray include(s).
 #include "detray/core/detector.hpp"
@@ -64,8 +65,9 @@ class KalmanFittingTests
         detray::rk_stepper<b_field_t::view_t, traccc::default_algebra,
                            detray::constrained_step<>>;
     using host_navigator_type = detray::navigator<const host_detector_type>;
-    using host_fitter_type =
-        kalman_fitter<rk_stepper_type, host_navigator_type>;
+    // using host_fitter_type =
+        // kalman_fitter<rk_stepper_type, host_navigator_type>;
+    using host_fitter_type = triplet_fitter<rk_stepper_type, host_navigator_type>;
     using device_navigator_type = detray::navigator<const device_detector_type>;
     using device_fitter_type =
         kalman_fitter<rk_stepper_type, device_navigator_type>;

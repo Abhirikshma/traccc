@@ -34,7 +34,7 @@ struct res_plot_tool_config {
         {"residual_theta",
          plot_helpers::binning("r_{#theta} [rad]", 100, -0.01f, 0.01f)},
         {"residual_qop",
-         plot_helpers::binning("r_{q/p} [c/GeV]", 100, -1.f, 1.f)},
+         plot_helpers::binning("r_{q/p} [c/GeV]", 100, -1.f, 4.f)},
         {"residual_t",
          plot_helpers::binning("r_{t} [s]", 100, -1000.f, 1000.f)},
         {"residual_qopT",

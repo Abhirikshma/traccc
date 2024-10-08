@@ -64,6 +64,22 @@ namespace traccc {
         template <size_type ROWS, size_type COLS>
         using matrix_type = detray::dmatrix<algebra_type, ROWS, COLS>;
 
+        // Switch coordinates 
+        // for using in telescope geometry
+        static point3 switch_coordinates(point3 in, bool rev = false) {
+            // Telescope -> Fit coordinates
+            // y -> x
+            // z -> y
+            // x -> z
+            // rev does the reverse transformation
+            if (!rev) {
+                return point3{in[1], in[2], in[0]};
+            }
+            else {
+                return point3{in[2], in[0], in[1]};
+            }
+        };
+
         /// Constructor with a detector
         ///
         /// @param det the detector object
@@ -161,10 +177,11 @@ namespace traccc {
                 point3 glob_3d_1 = meas_1_sf.bound_to_global({}, loc_2d_1, {});
                 point3 glob_3d_2 = meas_2_sf.bound_to_global({}, loc_2d_2, {});
 
-                std::cout << glob_3d_0[0] << " " << glob_3d_0[1] << " " << glob_3d_0[2] << std::endl;
+                // Switch coordinates 
+                std::cout << switch_coordinates(glob_3d_0)[0] << " " << switch_coordinates(glob_3d_0)[1] << " " << switch_coordinates(glob_3d_0)[2] << std::endl;
 
                 // Make triplet
-                triplet t(glob_3d_0, glob_3d_1, glob_3d_2);
+                triplet t(switch_coordinates(glob_3d_0), switch_coordinates(glob_3d_1), switch_coordinates(glob_3d_2));
                 
                 // measurements copied here
                 t.m_meas[0] = meas_0;
@@ -208,6 +225,8 @@ namespace traccc {
 
 
             // Direction of track at scattering plane (using hits 0 & 2)
+            vector3 tangent3D;
+
             vector2 m{0.5f * (t.m_hit_0[0] + t.m_hit_2[0]), 0.5f * (t.m_hit_0[1] + t.m_hit_2[1])};
             
             vector2 n{(t.m_hit_2[1] - t.m_hit_0[1]) / d_02, (t.m_hit_0[0] - t.m_hit_2[0]) / d_02};
@@ -223,6 +242,7 @@ namespace traccc {
             vector2 x1{t.m_hit_1[0], t.m_hit_1[1]};
             
             assert(getter::norm(x1 - m) != 0.f); // 3 hits must not lie on a straight line
+            std::cout << getter::norm(x1 - m) << std::endl;
 
             // choose the correct one
             vector2 c_correct{0.f, 0.f};
@@ -232,21 +252,42 @@ namespace traccc {
                     break;
                 }
             }
-            assert(getter::norm(c_correct) > 0.f); // no correct centre of circle found
-            vector2 r1 = x1 - c_correct;
-            vector2 tangent2D{r1[1], -1.f * r1[0]};
+            
+            
+            if (getter::norm(c_correct) == 0.f) {
+                // Use straight line connecting hits
+                // 0 and 2 if center calculation fails
+                tangent3D = vector::normalize(vector3{t.m_hit_2 - t.m_hit_0});
+            }
+            
+            else {
+                // Use circle
 
-            // tangent direction along trajectory
-            if (vector::dot(tangent2D, vector2{x_12[0], x_12[1]}) < 0.f)
-                tangent2D = -1.f * tangent2D;
+                assert(getter::norm(c_correct) > 0.f); // no correct centre of circle found
+                vector2 r1 = x1 - c_correct;
+                vector2 tangent2D{r1[1], -1.f * r1[0]};
 
+                // tangent direction along trajectory
+                if (vector::dot(tangent2D, vector2{x_12[0], x_12[1]}) < 0.f)
+                    tangent2D = -1.f * tangent2D;
+                
+                vector2 tangent2D_norm = math::sin(t.m_theta) / getter::norm(tangent2D) * tangent2D;
+                
+                // track tangent normalized to 1
+                tangent3D[0] = tangent2D_norm[0];
+                tangent3D[1] = tangent2D_norm[1];
+                tangent3D[2] = math::cos(t.m_theta);
+            }
 
+            std::cout << "tangent 3D : " << tangent3D[0] << ", " << tangent3D[1] << ", " << tangent3D[2] << std::endl; 
 
             // Parameters of the arc segments
             
             // Azimuthal (bending) angles
-            scalar phi_1C = 2.f * math::asin(0.5f * d_01 * c_perp);
-            scalar phi_2C = 2.f * math::asin(0.5f * d_12 * c_perp);
+            scalar phi_1C = 2.f * math::asin(std::clamp(0.5f * d_01 * c_perp, -1.f, 1.f));
+            scalar phi_2C = 2.f * math::asin(std::clamp(0.5f * d_12 * c_perp, -1.f, 1.f));
+
+            std::cout << "phi_1: " << phi_1C << " phi_2: " << phi_2C << std::endl;
             
             scalar phi2_1C = phi_1C * phi_1C;
             scalar phi2_2C = phi_2C * phi_2C;
@@ -263,26 +304,34 @@ namespace traccc {
             std::cout << "\tc_3D_1C " << c_3D_1C << " c_3D_2C " << c_3D_2C << std::endl;
 
             // Polar angles
-            scalar theta_1C = std::acos(z_01 * c_3D_1C / phi_1C);
-            scalar theta_2C = std::acos(z_12 * c_3D_2C / phi_2C);
+            scalar theta_1C = std::acos(std::clamp(z_01 * c_3D_1C / phi_1C, -1.f, 1.f));
+            scalar theta_2C = std::acos(std::clamp(z_12 * c_3D_2C / phi_2C, -1.f, 1.f));
             t.m_theta = 0.5f * (theta_1C + theta_2C); // estimate polar angle
 
-            vector2 tangent2D_norm = math::sin(t.m_theta) / getter::norm(tangent2D) * tangent2D;
-            // track tangent normalized to 1
-            vector3 tangent3D{tangent2D_norm[0], tangent2D_norm[1], math::cos(t.m_theta)};
+            std::cout << "theta : " << t.m_theta << "  theta_1 " << theta_1C << " theta_2 " << theta_2C << std::endl;
+
 
             // Estimate MS-uncertainty
             
             detray::tracking_surface scat_sf(m_detector, t.m_meas[1].surface_link);
 
             // effective thickness
-            scalar t_eff = mat_scatter / scat_sf.cos_angle({}, tangent3D, t.m_meas[1].local);
+            scalar t_eff = mat_scatter / scat_sf.cos_angle({}, switch_coordinates(tangent3D, true), t.m_meas[1].local);
 
+            std::cout << "t_eff [in X0] : " << t_eff << std::endl;
+
+            // TODO: make handling of B general
             auto scattering_unc = [](scalar curvature_3D, scalar eff_thickness, vector3 field_strength_vector) {
-                return math::fabs(curvature_3D) * 45.f * math::sqrt(eff_thickness) * unit<scalar>::T / field_strength_vector[2] * (1.f + 0.038f * math::log(eff_thickness));
+                return math::fabs(curvature_3D) * 45.f * math::sqrt(eff_thickness) * unit<scalar>::T / getter::norm(field_strength_vector) * (1.f + 0.038f * math::log(eff_thickness));
             };
 
-            t.m_sigma_MS = scattering_unc((0.5f *(c_3D_1C + c_3D_2C)), t_eff, m_field.at(t.m_hit_1[0], t.m_hit_1[1], t.m_hit_1[2]));
+            // vector3 B_vec = m_field.at(t.m_hit_1[0], t.m_hit_1[1], t.m_hit_1[2]);
+            vector3 B_vec = m_field.at(switch_coordinates(t.m_hit_1, true)); // fit -> telescope coordinates
+            vector3 B_transformed = switch_coordinates(B_vec);
+            std::cout << "B : " << B_transformed[0] / unit<scalar>::T << ", " << B_transformed[1] / unit<scalar>::T << ", " << B_transformed[2] / unit<scalar>::T << std::endl;
+
+            // t.m_sigma_MS = scattering_unc((0.5f *(c_3D_1C + c_3D_2C)), t_eff, m_field.at(t.m_hit_1[0], t.m_hit_1[1], t.m_hit_1[2]));
+            t.m_sigma_MS = scattering_unc((0.5f *(c_3D_1C + c_3D_2C)), t_eff, B_transformed);
             std::cout << "\tsigma_MS " << t.m_sigma_MS << std::endl;
 
             
@@ -292,10 +341,19 @@ namespace traccc {
 
             auto cot = [](scalar angle) { return math::cos(angle)/math::sin(angle); };
             // Triplet parameters
+            if (!(theta_1C == 0.f  or theta_2C == 0.f)) {
+                std::cout << "\033[0;31m regular formulae n_1C " << n_1C << "  n_2C " << n_2C << "\033[0m \n";
+                t.m_theta_0 = theta_2C - theta_1C + ((1.f -  n_2C) * cot(theta_2C) - (1.f - n_1C) * cot(theta_1C));
+                t.m_rho_theta = (1.f - n_1C) * cot(theta_1C) / c_3D_1C - (1.f - n_2C) * cot(theta_2C) / c_3D_2C;
+            }
+            else {
+                std::cout << "small-bending n_1C " << n_1C << "  n_2C " << n_2C;
+                t.m_theta_0 = theta_2C - theta_1C;
+                t.m_rho_theta = 0.f;
+            }
+
             t.m_phi_0 = 0.5f * (n_1C * phi_1C + n_2C * phi_2C);
-            t.m_theta_0 = theta_2C - theta_1C + ((1.f -  n_2C) * cot(theta_2C) - (1.f - n_1C) * cot(theta_1C));
             t.m_rho_phi = -0.5f * (phi_1C * n_1C/c_3D_1C + phi_2C * n_2C/c_3D_2C);
-            t.m_rho_theta = (1.f - n_1C) * cot(theta_1C) / c_3D_1C - (1.f - n_2C) * cot(theta_2C) / c_3D_2C;
 
             std::cout << "\tphi0 " << t.m_phi_0 << "  theta0 " << t.m_theta_0 << std::endl;
             std::cout << "\trho_phi " << t.m_rho_phi << "  rho_theta " << t.m_rho_theta << std::endl;
@@ -323,9 +381,16 @@ namespace traccc {
             scalar d_01 = getter::norm(x_01);
             scalar d_12 = getter::norm(x_12);
 
-            phi_0 = math::asin(cross_2d_z(x_01, x_12) / (d_01 * d_12));
-            // std::cout << "Quick linearize:" << std::endl;
-            // std::cout << "\tphi_0 " << phi_0 << std::endl;
+            phi_0 = math::asin(std::clamp(cross_2d_z(x_01, x_12) / (d_01 * d_12), -1.f, 1.f));
+            std::cout << "Quick linearize:" << std::endl;
+            // std::cout << "pos0 " << pos0[0] << ", " << pos0[1] << ", " << pos0[2] << std::endl;
+            // std::cout << "pos1 " << pos1[0] << ", " << pos1[1] << ", " << pos1[2] << std::endl;
+            // std::cout << "pos2 " << pos2[0] << ", " << pos2[1] << ", " << pos2[2] << std::endl;
+            // std::cout << "d01 " << d_01 << " d_12 " << d_12 << std::endl;
+            // std::cout << "x_01 " << x_01[0] << ", " << x_01[1] << std::endl;
+            // std::cout << "x_12 " << x_12[0] << ", " << x_12[1] << std::endl;
+            // std::cout << cross_2d_z(x_01, x_12) / (d_01 * d_12) << " - 1 = " << ((cross_2d_z(x_01, x_12) / (d_01 * d_12)) - 1.f) << std::endl;
+            std::cout << "\tphi_0 " << phi_0 << std::endl;
 
             vector2 x_0_L{pos0[2], 0.f};
             vector2 x_1_L{pos1[2], d_01};
@@ -335,7 +400,7 @@ namespace traccc {
             vector2 x_12_L = x_2_L - x_1_L;
 
             theta_0 = math::asin(cross_2d_z(x_01_L, x_12_L) / (getter::norm(x_01_L) * getter::norm(x_12_L)));
-            // std::cout << "\ttheta_0 " << theta_0 << std::endl;
+            std::cout << "\ttheta_0 " << theta_0 << std::endl;
         }
 
         /// Helper function - Hit Position Derivatives
@@ -411,13 +476,15 @@ namespace traccc {
                     // In global frame
                     vector3 pos_shifted_glob = sf.bound_to_global({}, pos_shifted_loc, {}); 
 
-                    global_positions[hit] = pos_shifted_glob;
+                    global_positions[hit] = switch_coordinates(pos_shifted_glob);
 
                     // Get parameters with shifted hit
                     quick_linearize(global_positions[0], global_positions[1], global_positions[2], phi_0_after, theta_0_after);
 
                     t.m_h_phi.push_back((phi_0_after - phi_0_before) / sigma_i);
+                    std::cout << "theta0 before " << theta_0_before << " theta0_after " << theta_0_after << " diff " << theta_0_after - theta_0_before << std::endl;
                     t.m_h_thet.push_back((theta_0_after - theta_0_before) / sigma_i);
+                    std::cout << "phi0 before " << phi_0_before << " phi0_after " << phi_0_after << " diff " << phi_0_after - phi_0_before << std::endl;
                 }
 
             }
@@ -586,7 +653,7 @@ namespace traccc {
 
             matrix_type<2u*max_ntrips, 2u*max_ntrips> K_inv = D_MS_inv + H * D_hit_inv * matrix_operator().transpose(H);
 
-            /*
+            
             // Visualize K_inv matrix
             std::cout << "K_inv:\n";
             for (size_t r = 0u; r < 2u*max_ntrips; ++r) {
@@ -595,7 +662,7 @@ namespace traccc {
                     std::cout << getter::element(K_inv, r, c) << " ";
                 }
                 std::cout << std::endl;
-            }*/
+            }
 
             // Matrix inversion
             matrix_type<2u*max_ntrips, 2u*max_ntrips> K = matrix_operator().inverse(K_inv);    
@@ -613,6 +680,8 @@ namespace traccc {
             scalar chi2 = getter::element(psiT_K_psi, 0u, 0u) - (c_3D * c_3D) / (sigma_c_3D * sigma_c_3D); 
 
             std::cout << "\nGlobal fit: c_3D " << c_3D << "  sigma_c_3D " << sigma_c_3D << "  chi2 " << chi2 << std::endl;
+
+            std::cout << "Denominator: " << getter::element(den, 0u, 0u) << std::endl;
 
             // Calculation of hit position shifts, covariance matrix
 
@@ -640,7 +709,7 @@ namespace traccc {
 
                 detray::tracking_surface sf0(detector, m0.surface_link);
 
-                point3 glob0 = sf0.bound_to_global({}, loc0_post_fit, {});
+                point3 glob0 = switch_coordinates(sf0.bound_to_global({}, loc0_post_fit, {}));
 
                 auto m1 = input_states[1].get_measurement();
 
@@ -649,9 +718,12 @@ namespace traccc {
 
                 detray::tracking_surface sf1(detector, m1.surface_link);
 
-                point3 glob1 = sf1.bound_to_global({}, loc1_post_fit, {});
+                point3 glob1 = switch_coordinates(sf1.bound_to_global({}, loc1_post_fit, {}));
 
                 point3 r01 = glob1 - glob0;
+
+                std::cout << "r01: " << r01[0] << ", " << r01[1] << ", " << r01[2] << std::endl;
+                std::cout << "phi(r01): " << getter::phi(r01) << std::endl;
 
                 // Calculation of track parameters at the first
                 // measurement with the first two hits assuming
@@ -659,8 +731,10 @@ namespace traccc {
 
                 scalar bending_angle = c_3D * getter::norm(r01);
 
+                std::cout << "bending angle: " << bending_angle << std::endl;
+
                 // Magnetic field at first measurement
-                vector3 B_vec = field.at(triplets[0].m_hit_0);
+                vector3 B_vec = field.at(switch_coordinates(triplets[0].m_hit_0, true));
 
                 // Momentum - TODO: handling of magnetic field
                 // Units: B [T], p [MeV] 
@@ -683,6 +757,7 @@ namespace traccc {
                 const scalar q = 1.f;
                 detray::bound_parameters_vector<algebra_type> params_vec{};
                 params_vec.set_bound_local(loc0);
+                std::cout << "phi " << (getter::phi(r01) + 0.5f * bending_angle) << " wrapped " << wrap_pi_mpi(getter::phi(r01) + 0.5f * bending_angle) << std::endl;
                 params_vec.set_phi(wrap_pi_mpi(getter::phi(r01) + 0.5f * bending_angle));
                 params_vec.set_theta(getter::theta(r01));
                 params_vec.set_qop(q / p);

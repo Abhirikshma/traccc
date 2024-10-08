@@ -17,6 +17,8 @@
 #include <TGraphErrors.h>
 #endif  // TRACCC_HAVE_ROOT
 
+#include <iostream>
+
 namespace traccc {
 
 res_plot_tool::res_plot_tool(const res_plot_tool_config& cfg) : m_cfg(cfg) {}
@@ -114,6 +116,7 @@ void res_plot_tool::fill(res_plot_cache& cache,
 
         if (idx < e_bound_size) {
             residual = fit_param[idx] - truth_param[idx];
+            std::cout << "fit param " << idx << " " << fit_param[idx] << std::endl;
             pull = residual /
                    std::sqrt(getter::element(fit_param.covariance(), idx, idx));
         } else if (par_name == "qopT") {
