@@ -8,15 +8,15 @@
 #pragma once
 
 // Project include(s).
-#include "traccc/edm/cell.hpp"
+#include "traccc/edm/silicon_cell_collection.hpp"
 #include "traccc/finding/finding_algorithm.hpp"
 #include "traccc/fitting/fitting_algorithm.hpp"
 #include "traccc/fitting/kalman_filter/kalman_fitter.hpp"
 #include "traccc/geometry/detector.hpp"
 #include "traccc/geometry/silicon_detector_description.hpp"
 #include "traccc/sycl/clusterization/clusterization_algorithm.hpp"
-#include "traccc/sycl/clusterization/spacepoint_formation_algorithm.hpp"
 #include "traccc/sycl/seeding/seeding_algorithm.hpp"
+#include "traccc/sycl/seeding/spacepoint_formation_algorithm.hpp"
 #include "traccc/sycl/seeding/track_params_estimation.hpp"
 #include "traccc/utils/algorithm.hpp"
 
@@ -48,23 +48,28 @@ struct full_chain_algorithm_data;
 ///
 class full_chain_algorithm
     : public algorithm<bound_track_parameters_collection_types::host(
-          const cell_collection_types::host&)> {
+          const edm::silicon_cell_collection::host&)> {
 
     public:
     /// @name (For now dummy...) Type declaration(s)
     /// @{
 
-    /// Detector type used during track finding and fitting
-    using detector_type = traccc::default_detector::host;
+    /// (Host) Detector type used during track finding and fitting
+    using host_detector_type = traccc::default_detector::host;
+    /// (Device) Detector type used during track finding and fitting
+    using device_detector_type = traccc::default_detector::device;
 
     /// Stepper type used by the track finding and fitting algorithms
     using stepper_type =
         detray::rk_stepper<detray::bfield::const_field_t::view_t,
-                           detector_type::algebra_type,
+                           device_detector_type::algebra_type,
                            detray::constrained_step<>>;
     /// Navigator type used by the track finding and fitting algorithms
-    using navigator_type = detray::navigator<const detector_type>;
-
+    using navigator_type = detray::navigator<const device_detector_type>;
+    /// Spacepoint formation algorithm type
+    using spacepoint_formation_algorithm =
+        traccc::sycl::spacepoint_formation_algorithm<
+            traccc::default_detector::device>;
     /// Clustering algorithm type
     using clustering_algorithm = clusterization_algorithm;
     /// Track finding algorithm type
@@ -89,7 +94,7 @@ class full_chain_algorithm
                          const finding_algorithm::config_type& finding_config,
                          const fitting_algorithm::config_type& fitting_config,
                          const silicon_detector_description::host& det_descr,
-                         detector_type* detector = nullptr);
+                         host_detector_type* detector = nullptr);
 
     /// Copy constructor
     ///
@@ -110,7 +115,7 @@ class full_chain_algorithm
     /// @return The track parameters reconstructed
     ///
     output_type operator()(
-        const cell_collection_types::host& cells) const override;
+        const edm::silicon_cell_collection::host& cells) const override;
 
     private:
     /// Private data object
@@ -129,6 +134,12 @@ class full_chain_algorithm
         m_det_descr;
     /// Detector description buffer
     silicon_detector_description::buffer m_device_det_descr;
+    /// Host detector
+    host_detector_type* m_detector;
+    /// Buffer holding the detector's payload on the device
+    host_detector_type::buffer_type m_device_detector;
+    /// View of the detector's payload on the device
+    host_detector_type::view_type m_device_detector_view;
 
     /// @name Sub-algorithms used by this full-chain algorithm
     /// @{

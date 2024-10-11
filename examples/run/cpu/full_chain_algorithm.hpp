@@ -9,8 +9,7 @@
 
 // Project include(s).
 #include "traccc/clusterization/clusterization_algorithm.hpp"
-#include "traccc/clusterization/spacepoint_formation_algorithm.hpp"
-#include "traccc/edm/cell.hpp"
+#include "traccc/edm/silicon_cell_collection.hpp"
 #include "traccc/edm/track_state.hpp"
 #include "traccc/finding/finding_algorithm.hpp"
 #include "traccc/fitting/fitting_algorithm.hpp"
@@ -18,6 +17,7 @@
 #include "traccc/geometry/detector.hpp"
 #include "traccc/geometry/silicon_detector_description.hpp"
 #include "traccc/seeding/seeding_algorithm.hpp"
+#include "traccc/seeding/spacepoint_formation_algorithm.hpp"
 #include "traccc/seeding/track_params_estimation.hpp"
 #include "traccc/utils/algorithm.hpp"
 
@@ -41,7 +41,7 @@ namespace traccc {
 /// At least as much as is implemented in the project at any given moment.
 ///
 class full_chain_algorithm : public algorithm<track_state_container_types::host(
-                                 const cell_collection_types::host&)> {
+                                 const edm::silicon_cell_collection::host&)> {
 
     public:
     /// @name Type declaration(s)
@@ -59,6 +59,10 @@ class full_chain_algorithm : public algorithm<track_state_container_types::host(
     using navigator_type = detray::navigator<const detector_type>;
 
     using clustering_algorithm = host::clusterization_algorithm;
+    /// Spacepoint formation algorithm type
+    using spacepoint_formation_algorithm =
+        traccc::host::spacepoint_formation_algorithm<
+            traccc::default_detector::host>;
     /// Track finding algorithm type
     using finding_algorithm =
         traccc::finding_algorithm<stepper_type, navigator_type>;
@@ -91,7 +95,7 @@ class full_chain_algorithm : public algorithm<track_state_container_types::host(
     /// @return The track parameters reconstructed
     ///
     output_type operator()(
-        const cell_collection_types::host& cells) const override;
+        const edm::silicon_cell_collection::host& cells) const override;
 
     private:
     /// Constant B field for the (seed) track parameter estimation
@@ -111,7 +115,7 @@ class full_chain_algorithm : public algorithm<track_state_container_types::host(
     /// Clusterization algorithm
     host::clusterization_algorithm m_clusterization;
     /// Spacepoint formation algorithm
-    host::spacepoint_formation_algorithm m_spacepoint_formation;
+    host::spacepoint_formation_algorithm<detector_type> m_spacepoint_formation;
     /// Seeding algorithm
     seeding_algorithm m_seeding;
     /// Track parameter estimation algorithm

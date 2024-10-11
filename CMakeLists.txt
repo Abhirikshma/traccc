@@ -84,13 +84,16 @@ option( TRACCC_USE_SYSTEM_VECMEM
    ${TRACCC_USE_SYSTEM_LIBS} )
 if( TRACCC_SETUP_VECMEM )
    if( TRACCC_USE_SYSTEM_VECMEM )
-      find_package( vecmem 0.7.0 REQUIRED COMPONENTS LANGUAGE )
+      find_package( vecmem 1.9.0 REQUIRED )
    else()
       add_subdirectory( extern/vecmem )
       # Make the "VecMem language code" available for the whole project.
-      include( "${VECMEM_LANGUAGE_DIR}/vecmem-check-language.cmake" )
+      list( PREPEND CMAKE_MODULE_PATH "${VECMEM_LANGUAGE_DIR}" )
    endif()
 endif()
+# Including vecmem-check-language makes sure that the HIP and SYCL languages
+# would be picked up from VecMem.
+include( vecmem-check-language )
 
 # Set up Eigen3.
 option( TRACCC_SETUP_EIGEN3
@@ -157,6 +160,20 @@ if( TRACCC_SETUP_TBB )
       find_package( TBB REQUIRED )
    else()
       add_subdirectory( extern/tbb )
+   endif()
+endif()
+
+# Set up DPL if SYCL is built.
+option( TRACCC_SETUP_DPL
+   "Set up the DPL target(s) explicitly" ${TRACCC_BUILD_SYCL} )
+option( TRACCC_USE_SYSTEM_DPL
+   "Pick up an existing installation of DPL from the build environment"
+   ${TRACCC_USE_SYSTEM_LIBS} )
+if( TRACCC_SETUP_DPL )
+   if( TRACCC_USE_SYSTEM_DPL )
+      find_package( DPL REQUIRED )
+   else()
+      add_subdirectory( extern/dpl )
    endif()
 endif()
 

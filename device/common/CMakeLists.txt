@@ -20,7 +20,6 @@ traccc_add_library( traccc_device_common device_common TYPE SHARED
    "include/traccc/device/container_d2h_copy_alg.hpp"
    "include/traccc/device/impl/container_d2h_copy_alg.ipp"
    # EDM class(es).
-   "include/traccc/edm/device/finding_global_counter.hpp"
    "include/traccc/edm/device/seeding_global_counter.hpp"
    "include/traccc/edm/device/doublet_counter.hpp"
    "include/traccc/edm/device/triplet_counter.hpp"
@@ -28,8 +27,6 @@ traccc_add_library( traccc_device_common device_common TYPE SHARED
    "include/traccc/edm/device/device_triplet.hpp"
    "include/traccc/edm/device/sort_key.hpp"
    # Clusterization function(s).
-   "include/traccc/clusterization/device/form_spacepoints.hpp"
-   "include/traccc/clusterization/device/impl/form_spacepoints.ipp"
    "include/traccc/clusterization/device/reduce_problem_cell.hpp"
    "include/traccc/clusterization/device/impl/reduce_problem_cell.ipp"
    "include/traccc/clusterization/device/aggregate_cluster.hpp"
@@ -42,8 +39,8 @@ traccc_add_library( traccc_device_common device_common TYPE SHARED
    "include/traccc/seeding/device/populate_grid.hpp"
    "include/traccc/seeding/device/impl/populate_grid.ipp"
    # Seed finding function(s).
-   "include/traccc/seeding/device/experimental/form_spacepoints.hpp"
-   "include/traccc/seeding/device/experimental/impl/form_spacepoints.ipp"
+   "include/traccc/seeding/device/form_spacepoints.hpp"
+   "include/traccc/seeding/device/impl/form_spacepoints.ipp"
    "include/traccc/seeding/device/count_doublets.hpp"
    "include/traccc/seeding/device/impl/count_doublets.ipp"
    "include/traccc/seeding/device/find_doublets.hpp"
@@ -79,6 +76,8 @@ traccc_add_library( traccc_device_common device_common TYPE SHARED
    # Track fitting funtions(s).
    "include/traccc/fitting/device/fit.hpp"
    "include/traccc/fitting/device/impl/fit.ipp"
+   "include/traccc/fitting/device/fill_sort_keys.hpp"
+   "include/traccc/fitting/device/impl/fill_sort_keys.ipp"
    )
 target_link_libraries( traccc_device_common
    PUBLIC traccc::Thrust traccc::core vecmem::core )
