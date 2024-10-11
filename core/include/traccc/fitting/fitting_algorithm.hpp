@@ -17,6 +17,7 @@
 #include "traccc/utils/algorithm.hpp"
 
 #include <iostream>
+#include <fstream>
 
 namespace traccc {
 
@@ -117,6 +118,10 @@ class fitting_algorithm<traccc::triplet_fitter<stepper_t, navigator_t>>
         const typename track_candidate_container_types::host& track_candidates)
         const override {
 
+        // Open a file
+        std::ofstream file_out;
+        file_out.open("/home/atlas/nandi/fit_out.csv", std::ios_base::app);
+
         traccc::triplet_fitter<stepper_t, navigator_t> fitter(det, field, m_cfg);
 
         track_state_container_types::host output_states;
@@ -159,10 +164,14 @@ class fitting_algorithm<traccc::triplet_fitter<stepper_t, navigator_t>>
                 std::move(fit_res),
                 std::move(track_states));
 
-            std::cout << "fitted chi2: " << output_states[i].header.chi2 << std::endl;
-            std::cout << "N(fitted states): " << output_states[i].items.size() << std::endl;
+            // std::cout << "fitted chi2: " << output_states[i].header.chi2 << std::endl;
+            // std::cout << "N(fitted states): " << output_states[i].items.size() << std::endl;
+
+            file_out << fit_res.fit_params.bound_local()[0] << ", " << fit_res.fit_params.bound_local()[1] << ", " << fit_res.fit_params.phi() << ", " << fit_res.fit_params.theta() << ", " << fit_res.fit_params.qop() << ", " << fit_res.fit_params.time() << ", " << fit_res.chi2 << ", " << fit_res.ndf << std::endl;
 
         }
+
+        file_out.close();
 
         return output_states;
     }
