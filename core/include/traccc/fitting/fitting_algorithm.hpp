@@ -50,6 +50,10 @@ class fitting_algorithm
         const typename track_candidate_container_types::host& track_candidates)
         const override {
 
+        // Open a file
+        // std::ofstream file_out;
+        // file_out.open("/home/atlas/nandi/fit_out.csv", std::ios_base::app);
+
         fitter_t fitter(det, field, m_cfg);
 
         track_state_container_types::host output_states;
@@ -80,7 +84,11 @@ class fitting_algorithm
             output_states.push_back(
                 std::move(fitter_state.m_fit_res),
                 std::move(fitter_state.m_fit_actor_state.m_track_states));
+
+            // file_out << fitter_state.m_fit_res.fit_params.bound_local()[0] << ", " << fitter_state.m_fit_res.fit_params.bound_local()[1] << ", " << fitter_state.m_fit_res.fit_params.phi() << ", " << fitter_state.m_fit_res.fit_params.theta() << ", " << fitter_state.m_fit_res.fit_params.qop() << ", " << fitter_state.m_fit_res.fit_params.time() << ", " << fitter_state.m_fit_res.chi2 << ", " << fitter_state.m_fit_res.ndf << std::endl;
         }
+
+        // file_out.close();
 
         return output_states;
     }
@@ -119,8 +127,8 @@ class fitting_algorithm<traccc::triplet_fitter<stepper_t, navigator_t>>
         const override {
 
         // Open a file
-        std::ofstream file_out;
-        file_out.open("/home/atlas/nandi/fit_out.csv", std::ios_base::app);
+        // std::ofstream file_out;
+        // file_out.open("/home/atlas/nandi/fit_out.csv", std::ios_base::app);
 
         traccc::triplet_fitter<stepper_t, navigator_t> fitter(det, field, m_cfg);
 
@@ -132,13 +140,18 @@ class fitting_algorithm<traccc::triplet_fitter<stepper_t, navigator_t>>
         // Iterate over tracks
         for (std::size_t i = 0; i < n_tracks; i++) {
 
-            std::cout << "\nFitting track # " << i << std::endl;
-            std::cout << "********************* \n";
+            // std::cout << "\nFitting track # " << i << std::endl;
+            // std::cout << "********************* \n";
 
             // Make a vector of track state
             auto& cands = track_candidates[i].items;
 
-            std::cout << cands.size() << " measurements in this track" << std::endl;
+            // std::cout << cands.size() << " measurements in this track" << std::endl;
+            // Skip for too many measurements
+            if (cands.size() > 20u) {
+                // std::cout << "skipping this track\n";
+                continue;
+            }
 
             vecmem::vector<track_state<algebra_type>> input_states;
             input_states.reserve(cands.size());
@@ -167,11 +180,11 @@ class fitting_algorithm<traccc::triplet_fitter<stepper_t, navigator_t>>
             // std::cout << "fitted chi2: " << output_states[i].header.chi2 << std::endl;
             // std::cout << "N(fitted states): " << output_states[i].items.size() << std::endl;
 
-            file_out << fit_res.fit_params.bound_local()[0] << ", " << fit_res.fit_params.bound_local()[1] << ", " << fit_res.fit_params.phi() << ", " << fit_res.fit_params.theta() << ", " << fit_res.fit_params.qop() << ", " << fit_res.fit_params.time() << ", " << fit_res.chi2 << ", " << fit_res.ndf << std::endl;
+            // file_out << fit_res.fit_params.bound_local()[0] << ", " << fit_res.fit_params.bound_local()[1] << ", " << fit_res.fit_params.phi() << ", " << fit_res.fit_params.theta() << ", " << fit_res.fit_params.qop() << ", " << fit_res.fit_params.time() << ", " << fit_res.chi2 << ", " << fit_res.ndf << std::endl;
 
         }
 
-        file_out.close();
+        // file_out.close();
 
         return output_states;
     }

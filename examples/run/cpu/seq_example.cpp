@@ -110,7 +110,7 @@ int seq_run(const traccc::opts::input_data& input_opts,
     using finding_algorithm =
         traccc::finding_algorithm<stepper_type, navigator_type>;
     using fitting_algorithm = traccc::fitting_algorithm<
-        traccc::triplet_fitter<stepper_type, navigator_type>>;
+        traccc::kalman_fitter<stepper_type, navigator_type>>;
 
     // Constant B field for the track finding and fitting
     const traccc::vector3 field_vec = {0.f, 0.f,
