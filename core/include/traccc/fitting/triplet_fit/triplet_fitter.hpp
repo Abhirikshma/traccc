@@ -26,6 +26,9 @@
 
 #include "detray/tracks/bound_track_parameters.hpp"
 
+// Inversion algorithm
+#include "cholesky_inverse.hpp"
+
 // System include(s).
 #include <limits>
 #include <iostream>
@@ -504,13 +507,15 @@ namespace traccc {
             t.m_h_thet.reserve(3u * max_dims);
 
 
-            std::array<vector3, 3u> global_positions{t.m_hit_0, t.m_hit_1, t.m_hit_2};
+            // std::array<vector3, 3u> global_positions{t.m_hit_0, t.m_hit_1, t.m_hit_2};
             
             // Loop over measurements in triplet
             for (unsigned hit = 0; hit < 3; ++hit) {
 
                 vector2 pos_loc = t.m_meas[hit].local;
                 vector2 var_loc = t.m_meas[hit].variance;
+
+                std::array<vector3, 3u> global_shifted_positions{t.m_hit_0, t.m_hit_1, t.m_hit_2};
 
                 // Surface
                 detray::tracking_surface sf(m_detector, t.m_meas[hit].surface_link);
@@ -536,10 +541,10 @@ namespace traccc {
                     // In global frame
                     vector3 pos_shifted_glob = sf.bound_to_global({}, pos_shifted_loc, {}); 
 
-                    global_positions[hit] = pos_shifted_glob;
+                    global_shifted_positions[hit] = pos_shifted_glob;
 
                     // Get parameters with shifted hit
-                    quick_linearize(global_positions[0], global_positions[1], global_positions[2], phi_0_after, theta_0_after);
+                    quick_linearize(global_shifted_positions[0], global_shifted_positions[1], global_shifted_positions[2], phi_0_after, theta_0_after);
 
                     t.m_h_phi.push_back((phi_0_after - phi_0_before) / sigma_i);
                     t.m_h_thet.push_back((theta_0_after - theta_0_before) / sigma_i);
@@ -578,7 +583,7 @@ namespace traccc {
             constexpr size_t max_dims = 2u;
             constexpr size_t max_nhits = 20u;
             constexpr size_t max_ntrips = max_nhits - 2u;
-            constexpr size_t max_ndirs = max_dims * max_nhits; // max_dims = 3, better 2 ?
+            constexpr size_t max_ndirs = max_dims * max_nhits;
 
             // Actual number in this track
             const size_t N_triplets = m_triplets.size();
@@ -674,14 +679,14 @@ namespace traccc {
                     // getter::element(D_hit_inv, (i + 1u) * max_dims, (i + 1u) * max_dims) = 1.f / t_i.m_meas[1u].variance[0u];
                     // getter::element(D_hit_inv, (i + 1u) * max_dims + 1u, (i + 1u) * max_dims + 1u) = 1.f / t_i.m_meas[1u].variance[1u];
                     getter::element(D_hit_inv, i + 1u, i + 1u) = t_i.m_meas[1u].variance[0u];
-                    getter::element(D_hit_inv, 1 + max_nhits + 1u, i + max_nhits + 1u) = t_i.m_meas[1u].variance[1u];
+                    getter::element(D_hit_inv, i + max_nhits + 1u, i + max_nhits + 1u) = t_i.m_meas[1u].variance[1u];
                     // getter::element(D_hit_inv, (i + 1u) * max_dims + 2u, (i + 1u) * max_dims + 2u) = 0.f;
 
                     // 3rd hit
                     // getter::element(D_hit_inv, (i + 2u) * max_dims, (i + 2u) * max_dims) = 1.f / t_i.m_meas[2u].variance[0u];
                     // getter::element(D_hit_inv, (i + 2u) * max_dims + 1u, (i + 2u) * max_dims + 1u) = 1.f / t_i.m_meas[2u].variance[1u];
                     getter::element(D_hit_inv, i + 2u, i + 2u) = t_i.m_meas[2u].variance[0u];
-                    getter::element(D_hit_inv, 1 + max_nhits + 2u, i + max_nhits + 2u) = t_i.m_meas[2u].variance[1u];
+                    getter::element(D_hit_inv, i + max_nhits + 2u, i + max_nhits + 2u) = t_i.m_meas[2u].variance[1u];
                     // getter::element(D_hit_inv, (i + 2u) * max_dims + 2u, (i + 2u) * max_dims + 2u) = 0.f;
                 }
 
@@ -697,7 +702,14 @@ namespace traccc {
 
             matrix_type<2u*max_ntrips, 2u*max_ntrips> K_inv = D_MS_inv + H * D_hit_inv * matrix_operator().transpose(H);
 
-            /*std::cout << "D_MS_inv:\n";
+
+            // Matrix inversion
+            // matrix_type<2u*max_ntrips, 2u*max_ntrips> K = matrix_operator().inverse(K_inv); // partial pivot LU-decomposition
+            matrix_type<2u*max_ntrips, 2u*max_ntrips> K = cholesky_inverse<algebra_type>().template operator()<2u*max_ntrips>(K_inv); // Cholesky decomposition
+
+            /*
+            std::cout << " ************************************ MATRICES ************************************ " << std::endl;
+            std::cout << "D_MS_inv:\n";
             for (size_t r = 0u; r < 2u*max_ntrips; ++r) {
                 for (size_t c = 0u; c < 2u*max_ntrips; ++c) {
                     std::cout << std::setw(12);
@@ -705,7 +717,15 @@ namespace traccc {
                 }
                 std::cout << std::endl;
             }
-            // Visualize K_inv matrix
+            std::cout << "D_hit_inv:\n";
+            for (size_t r = 0u; r < max_ndirs; ++r) {
+                for (size_t c = 0u; c < max_ndirs; ++c) {
+                    std::cout << std::setw(12);
+                    std::cout << getter::element(D_hit_inv, r, c) << " ";
+                }
+                std::cout << std::endl;
+            }
+
             std::cout << "K_inv:\n";
             for (size_t r = 0u; r < 2u*max_ntrips; ++r) {
                 for (size_t c = 0u; c < 2u*max_ntrips; ++c) {
@@ -713,10 +733,15 @@ namespace traccc {
                     std::cout << getter::element(K_inv, r, c) << " ";
                 }
                 std::cout << std::endl;
+            }
+            std::cout << "K:\n";
+            for (size_t r = 0u; r < 2u*max_ntrips; ++r) {
+                for (size_t c = 0u; c < 2u*max_ntrips; ++c) {
+                    std::cout << std::setw(12);
+                    std::cout << getter::element(K, r, c) << " ";
+                }
+                std::cout << std::endl;
             }*/
-
-            // Matrix inversion
-            matrix_type<2u*max_ntrips, 2u*max_ntrips> K = matrix_operator().inverse(K_inv);    
 
             matrix_type<1u, 1u> num = -1.f * matrix_operator().transpose(rho) * K * psi;
             matrix_type<1u, 1u> den = matrix_operator().transpose(rho) * K * rho;
