@@ -230,6 +230,10 @@ class triplet_fitter {
         // Assuming no holes
         const size_t n_triplets = in_measurements.size() - 2;
 
+        // Clear triplets from last candidate
+        m_triplets.clear();
+        m_meas_sum_dims = 0;
+
         m_triplets.reserve(n_triplets);
 
         // loop over measurements (track states) in candidate
