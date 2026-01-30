@@ -11,17 +11,17 @@
 #include "traccc/definitions/math.hpp"
 #include "traccc/definitions/primitives.hpp"
 #include "traccc/definitions/qualifiers.hpp"
+#include "traccc/edm/measurement_collection.hpp"
 #include "traccc/edm/track_container.hpp"
 #include "traccc/edm/track_parameters.hpp"
 #include "traccc/edm/track_state_collection.hpp"
-#include "traccc/edm/measurement_collection.hpp"
 #include "traccc/fitting/fitting_config.hpp"
 #include "traccc/utils/prob.hpp"
 
 // detray include(s).
-#include "detray/geometry/tracking_surface.hpp"
-#include "detray/tracks/bound_track_parameters.hpp"
-#include "detray/utils/geometry_utils.hpp"
+#include <detray/geometry/tracking_surface.hpp>
+#include <detray/tracks/bound_track_parameters.hpp>
+#include <detray/utils/geometry_utils.hpp>
 
 // vecmem include(s)
 #include <vecmem/containers/device_vector.hpp>
@@ -80,8 +80,10 @@ class triplet_fitter {
         scalar dphi =
             math::fmod(phi_a - phi_b, 2.f * static_cast<scalar>(M_PI));
 
-        if (dphi > static_cast<scalar>(M_PI)) dphi -= 2.f * static_cast<scalar>(M_PI);
-        if (dphi < -1.f * static_cast<scalar>(M_PI)) dphi += 2.f * static_cast<scalar>(M_PI);
+        if (dphi > static_cast<scalar>(M_PI))
+            dphi -= 2.f * static_cast<scalar>(M_PI);
+        if (dphi < -1.f * static_cast<scalar>(M_PI))
+            dphi += 2.f * static_cast<scalar>(M_PI);
         return dphi;
     }
 
@@ -133,7 +135,8 @@ class triplet_fitter {
         /// Custom copy
         ///
         /// (only hit positions and measurements copied)
-        triplet(const triplet& t) : m_hit_pos{t.m_hit_pos}, m_meas_idx{t.m_meas_idx} {}
+        triplet(const triplet& t)
+            : m_hit_pos{t.m_hit_pos}, m_meas_idx{t.m_meas_idx} {}
 
         /// Shift a hit by measurement uncertainty
         ///
@@ -141,9 +144,12 @@ class triplet_fitter {
         /// @param dir_idx direction index
         /// @param multipler multipler
         /// @param detector detector
-        void shiftHit(const unsigned& hit_idx, const unsigned& dir_idx,
-                      const scalar& multipler, typename edm::measurement_collection<algebra_type>::const_device measurements,
-                       const detector_t& detector) {
+        void shiftHit(
+            const unsigned& hit_idx, const unsigned& dir_idx,
+            const scalar& multipler,
+            typename edm::measurement_collection<algebra_type>::const_device
+                measurements,
+            const detector_t& detector) {
             // The shifts are applied to the global
             // positions of the hits
 
@@ -152,16 +158,20 @@ class triplet_fitter {
             point2 loc_var{};
             const auto meas = measurements.at(m_meas_idx[hit_idx]);
             for (std::size_t dim : meas.subspace()) {
-                loc_pos[dim] = measurements.at(m_meas_idx[hit_idx]).local_position()[dim];
-                loc_var[dim] = measurements.at(m_meas_idx[hit_idx]).local_variance()[dim];
+                loc_pos[dim] =
+                    measurements.at(m_meas_idx[hit_idx]).local_position()[dim];
+                loc_var[dim] =
+                    measurements.at(m_meas_idx[hit_idx]).local_variance()[dim];
             }
 
             // Shift local position
-            assert(dir_idx <= measurements.at(m_meas_idx[hit_idx]).dimensions());
+            assert(dir_idx <=
+                   measurements.at(m_meas_idx[hit_idx]).dimensions());
             loc_pos[dir_idx] += multipler * math::sqrt(loc_var[dir_idx]);
 
             // Surface
-            detray::tracking_surface sf{detector, measurements.at(m_meas_idx[hit_idx]).surface_link()};
+            detray::tracking_surface sf{
+                detector, measurements.at(m_meas_idx[hit_idx]).surface_link()};
 
             // Convert shifted position to global coordinates
             point3 glob_pos = sf.local_to_global({}, loc_pos, {});
@@ -198,21 +208,24 @@ class triplet_fitter {
 
         // Measurements for getting position uncertainties (hit shifts)
         // and surface orientation (scattering estimation)
-        // std::array<typename edm::measurement_collection<algebra_type>::host::proxy_type, 3u> m_meas;
+        // std::array<typename
+        // edm::measurement_collection<algebra_type>::host::proxy_type, 3u>
+        // m_meas;
 
         // No default construction for measurement proxies
         // can I have an array of indices instead ?
         std::array<unsigned int, 3u> m_meas_idx;
     };
 
-
     /// Helper function - Make triplets
     ///
     /// Makes triplets from consecutive measurements on the track
     ///
     TRACCC_HOST_DEVICE
-    void make_triplets(const vecmem::vector<unsigned int>& in_measurements, 
-                        typename edm::measurement_collection<algebra_type>::const_device measurements) {
+    void make_triplets(
+        const vecmem::vector<unsigned int>& in_measurements,
+        typename edm::measurement_collection<algebra_type>::const_device
+            measurements) {
 
         // Assuming no holes
         const size_t n_triplets = in_measurements.size() - 2;
@@ -228,9 +241,12 @@ class triplet_fitter {
             auto meas_2 = measurements.at(in_measurements[i + 2]);
 
             // Get surfaces
-            detray::tracking_surface meas_0_sf(m_detector, meas_0.surface_link());
-            detray::tracking_surface meas_1_sf(m_detector, meas_1.surface_link());
-            detray::tracking_surface meas_2_sf(m_detector, meas_2.surface_link());
+            detray::tracking_surface meas_0_sf(m_detector,
+                                               meas_0.surface_link());
+            detray::tracking_surface meas_1_sf(m_detector,
+                                               meas_1.surface_link());
+            detray::tracking_surface meas_2_sf(m_detector,
+                                               meas_2.surface_link());
 
             // Get measurement local positions
             point2 loc_2d_0{};
@@ -352,8 +368,10 @@ class triplet_fitter {
     ///
     /// @param t Triplet to linearize
     ///
-    TRACCC_HOST_DEVICE void linearize_triplet(triplet& t,
-    typename edm::measurement_collection<algebra_type>::const_device measurements) {
+    TRACCC_HOST_DEVICE void linearize_triplet(
+        triplet& t,
+        typename edm::measurement_collection<algebra_type>::const_device
+            measurements) {
 
         // Vectors joining hits
         vector3 x_01{t.m_hit_pos[1] - t.m_hit_pos[0]};
@@ -396,7 +414,7 @@ class triplet_fitter {
         // (with the assumption that smaller of the two
         // transverse bending angles has |PHI_xC| < PI)
         // 1, 2: segment
-        // C: circle solution in transverse plane 
+        // C: circle solution in transverse plane
 
         scalar sin_phiHalf_1C = 0.5f * d_01 * c_perp;
         scalar sin_phiHalf_2C = 0.5f * d_12 * c_perp;
@@ -405,7 +423,6 @@ class triplet_fitter {
 
         phi_1C = 2.f * math::asin(sin_phiHalf_1C);
         phi_2C = 2.f * math::asin(sin_phiHalf_2C);
-
 
         // Bending parameters
         scalar Xphi_1C = 1.f;
@@ -439,7 +456,6 @@ class triplet_fitter {
         scalar theta_1C = math::atan2(t_1C, z_01);
         scalar theta_2C = math::atan2(t_2C, z_12);
 
-
         scalar cot_th_1C = z_01 / t_1C;
         scalar cot_th_2C = z_12 / t_2C;
 
@@ -463,17 +479,20 @@ class triplet_fitter {
         // (track direction used here
         // to get precise thickness of material)
 
-        detray::tracking_surface scat_sf(m_detector, measurements.at(t.m_meas_idx[1]).surface_link());
+        detray::tracking_surface scat_sf(
+            m_detector, measurements.at(t.m_meas_idx[1]).surface_link());
 
         // effective thickness
-        scalar t_eff = mat_scatter / detray::cos_angle({}, scat_sf, tangent3D,
-                                                       measurements.at(t.m_meas_idx[1]).local_position());
-
+        scalar t_eff = mat_scatter /
+                       detray::cos_angle(
+                           {}, scat_sf, tangent3D,
+                           measurements.at(t.m_meas_idx[1]).local_position());
 
         auto scattering_unc = [](scalar curvature_3D, scalar eff_thickness,
                                  vector3 field_strength_vector) {
-            return math::fabs(curvature_3D) * 45.0311528518f * math::sqrt(eff_thickness) *
-                   unit<scalar>::T / field_strength_vector[2] *
+            return math::fabs(curvature_3D) * 45.0311528518f *
+                   math::sqrt(eff_thickness) * unit<scalar>::T /
+                   field_strength_vector[2] *
                    (1.f + 0.038f * math::log(eff_thickness));
         };
 
@@ -483,7 +502,6 @@ class triplet_fitter {
         B_vec[0u] = B_field[0u];
         B_vec[1u] = B_field[1u];
         B_vec[2u] = B_field[2u];
-        
 
         // 3D curvatures of segments
         scalar c_3D_1C = c_perp * sin_th_1C;
@@ -497,7 +515,6 @@ class triplet_fitter {
             1.f / (Xphi_1C * cos_phiHalf_1C * sin_th_1C_2 + cos_th_1C_2);
         scalar n_2C =
             1.f / (Xphi_2C * cos_phiHalf_2C * sin_th_2C_2 + cos_th_2C_2);
-
 
         // Segment parameters
 
@@ -547,14 +564,16 @@ class triplet_fitter {
     ///
     /// @param t Triplet
     ///
-    TRACCC_HOST_DEVICE void calculate_pos_derivs(triplet& t,
-         typename edm::measurement_collection<algebra_type>::const_device measurements) {
+    TRACCC_HOST_DEVICE void calculate_pos_derivs(
+        triplet& t,
+        typename edm::measurement_collection<algebra_type>::const_device
+            measurements) {
 
         // Hits shifted by multiplier * sigma in every direction
         scalar multiplier = 1.f;
 
         // Curvature of reference solution in bending plane
-        scalar c_perp = - t.m_phi_0 / t.m_rho_phi;
+        scalar c_perp = -t.m_phi_0 / t.m_rho_phi;
 
         // Reserve space for derivative containers
         t.m_hd_phi.reserve(3u * m_max_dims);
@@ -579,7 +598,8 @@ class triplet_fitter {
                 // Make a copy to shift
                 triplet t_shift{t};
 
-                t_shift.shiftHit(hit, dir, multiplier, measurements, m_detector);
+                t_shift.shiftHit(hit, dir, multiplier, measurements,
+                                 m_detector);
 
                 // Calculate triplet and segment parameters
                 linearize_triplet(t_shift, measurements);
@@ -592,7 +612,6 @@ class triplet_fitter {
                                 c_perp * (t_shift.m_rho_theta - t.m_rho_theta);
                 t.m_hd_phi.push_back(dphi / multiplier);
                 t.m_hd_theta.push_back(dtheta / multiplier);
-
 
                 // Segment parameters
                 t.m_fseg_1.emplace_back(
@@ -614,7 +633,6 @@ class triplet_fitter {
         }
     }
 
-
     /// Helper function - Global Fit
     ///
     /// Global fit of processed hit triplets on track
@@ -623,9 +641,11 @@ class triplet_fitter {
     /// @return fitted state at first measurement
     ///
     TRACCC_HOST_DEVICE
-    typename edm::track_state_collection<algebra_type>::host::object_type do_global_fit(
+    typename edm::track_state_collection<algebra_type>::host::object_type
+    do_global_fit(
         typename edm::track_collection<algebra_type>::host::proxy_type& track,
-        typename edm::measurement_collection<algebra_type>::const_device measurements) {
+        typename edm::measurement_collection<algebra_type>::const_device
+            measurements) {
 
         // Allocate matrices with max possible sizes
         constexpr size_t max_nhits =
@@ -685,34 +705,34 @@ class triplet_fitter {
             // hd_theta and phi has the structure
             // hit0-dir0, hit0-dir1, hit1-dir0, hit1-dir1, ...
             // -----------------------------------------------
-            
+
             // Theta derivatives
             // 1st Hit in triplet
             getter::element(Hd, i, i) = t_i.m_hd_theta[0u];
             getter::element(Hd, i, max_nhits + i) = t_i.m_hd_theta[1u];
-            
+
             // 2nd Hit
             getter::element(Hd, i, i + 1u) = t_i.m_hd_theta[m_max_dims * 1u];
             getter::element(Hd, i, max_nhits + i + 1u) =
                 t_i.m_hd_theta[m_max_dims * 1u + 1u];
-            
+
             // 3rd Hit
             getter::element(Hd, i, i + 2u) = t_i.m_hd_theta[m_max_dims * 2u];
             getter::element(Hd, i, max_nhits + i + 2u) =
                 t_i.m_hd_theta[m_max_dims * 2u + 1u];
 
-
-            // Phi derivatives 
+            // Phi derivatives
             // 1st Hit
             getter::element(Hd, i + max_ntrips, i) = t_i.m_hd_phi[0u];
-            getter::element(Hd, i + max_ntrips, max_nhits + i) = t_i.m_hd_phi[1u];
-            
+            getter::element(Hd, i + max_ntrips, max_nhits + i) =
+                t_i.m_hd_phi[1u];
+
             // 2nd Hit
             getter::element(Hd, i + max_ntrips, i + 1u) =
                 t_i.m_hd_phi[m_max_dims * 1u];
             getter::element(Hd, i + max_ntrips, max_nhits + i + 1u) =
                 t_i.m_hd_phi[m_max_dims * 1u + 1u];
-            
+
             // 3rd Hit
             getter::element(Hd, i + max_ntrips, i + 2u) =
                 t_i.m_hd_phi[m_max_dims * 2u];
@@ -720,7 +740,6 @@ class triplet_fitter {
                 t_i.m_hd_phi[m_max_dims * 2u + 1u];
 
         }  // done filling
-
 
         // Triplet precision matrix
         // Note: diagonal elements in K_inv are 1
@@ -748,14 +767,13 @@ class triplet_fitter {
         // Calculation of curvature, uncertainty, fit quality //
         // -------------------------------------------------- //
 
-        scalar c_3D =
-            -1.f * getter::element(rhoT_K_psi, 0u, 0u) / getter::element(rhoT_K_rho, 0u, 0u);
+        scalar c_3D = -1.f * getter::element(rhoT_K_psi, 0u, 0u) /
+                      getter::element(rhoT_K_rho, 0u, 0u);
 
         scalar var_c_3D = 1.f / getter::element(rhoT_K_rho, 0u, 0u);
 
-        scalar chi2 =
-            getter::element(psiT_K_psi, 0u, 0u) + c_3D *
-            getter::element(rhoT_K_psi, 0u, 0u);
+        scalar chi2 = getter::element(psiT_K_psi, 0u, 0u) +
+                      c_3D * getter::element(rhoT_K_psi, 0u, 0u);
 
         // --------------------------------------------------- //
         // Calculation of correlation matrices & hit residuals //
@@ -763,28 +781,36 @@ class triplet_fitter {
 
         matrix_type<max_ndirs, 1u> HdT_K_psi = (HdT * K_psi);
         matrix_type<max_ndirs, 1u> HdT_K_rho = (HdT * K_rho);
-        matrix_type<max_ndirs, 1u> HdT_K_rho_norm = (1.f / getter::element(rhoT_K_rho, 0u, 0u)) * HdT_K_rho;
+        matrix_type<max_ndirs, 1u> HdT_K_rho_norm =
+            (1.f / getter::element(rhoT_K_rho, 0u, 0u)) * HdT_K_rho;
 
         // Hit pull vector (local), all hits
         // Structure:
-        // (h0,d0), (h1,d0), (h2,d0), ... , (hmax_nhits-1,d0), 
+        // (h0,d0), (h1,d0), (h2,d0), ... , (hmax_nhits-1,d0),
         // (h0,d1), (h1,d1), (h2,d1), ... , (hmax_nhits-1,d1),
         // .
         // .
         // .
-        // (h0,m_max_dims - 1), (h1,m_max_dims - 1), (h2,m_max_dims - 1), ... , (hmax_nhits-1,m_max_dims - 1)
-        
-        matrix_type<max_ndirs, 1u> hit_loc_pulls = HdT_K_psi - HdT_K_rho_norm * getter::element(rhoT_K_psi, 0u, 0u);  // to be stored ...
+        // (h0,m_max_dims - 1), (h1,m_max_dims - 1), (h2,m_max_dims - 1), ... ,
+        // (hmax_nhits-1,m_max_dims - 1)
+
+        matrix_type<max_ndirs, 1u> hit_loc_pulls =
+            HdT_K_psi -
+            HdT_K_rho_norm *
+                getter::element(rhoT_K_psi, 0u, 0u);  // to be stored ...
 
         // Hit matrix
-        matrix_type<max_ndirs, max_ndirs> HdT_K_Hd = matrix::transpose(Hd) * K * Hd;
+        matrix_type<max_ndirs, max_ndirs> HdT_K_Hd =
+            matrix::transpose(Hd) * K * Hd;
 
         // Hit correlation matrix (local)
-        matrix_type<max_ndirs, max_ndirs> hit_loc_corrmatrix = matrix::identity<matrix_type<max_ndirs, max_ndirs>>() - HdT_K_Hd + HdT_K_rho_norm * matrix::transpose(HdT_K_rho); // to be stored ...
+        matrix_type<max_ndirs, max_ndirs> hit_loc_corrmatrix =
+            matrix::identity<matrix_type<max_ndirs, max_ndirs>>() - HdT_K_Hd +
+            HdT_K_rho_norm * matrix::transpose(HdT_K_rho);  // to be stored ...
 
         // Mixed hit position - curvature correlations (local)
-        matrix_type<max_ndirs, 1u> hit_loc_corr_mixed = HdT_K_rho_norm; // to be stored ...
-
+        matrix_type<max_ndirs, 1u> hit_loc_corr_mixed =
+            HdT_K_rho_norm;  // to be stored ...
 
         // ------------------------------------------------------- //
         // Calculation of track state vector and covariance matrix //
@@ -793,10 +819,14 @@ class triplet_fitter {
         // At the first measurement surface (first triplet, first segement)
 
         const triplet& triplet_first = m_triplets[0u];
-        
-        scalar theta = triplet_first.m_seg_1.theta + (triplet_first.m_seg_1.tau + c_3D * triplet_first.m_seg_1.rho_theta);
-        
-        scalar phi = triplet_first.m_seg_1.phi - 0.5f * (triplet_first.m_seg_1.nu + c_3D * triplet_first.m_seg_1.rho_phi);
+
+        scalar theta = triplet_first.m_seg_1.theta +
+                       (triplet_first.m_seg_1.tau +
+                        c_3D * triplet_first.m_seg_1.rho_theta);
+
+        scalar phi = triplet_first.m_seg_1.phi -
+                     0.5f * (triplet_first.m_seg_1.nu +
+                             c_3D * triplet_first.m_seg_1.rho_phi);
 
         // grads_theta & phi have the same structure as
         // position and segment derivative containers
@@ -812,19 +842,25 @@ class triplet_fitter {
 
         for (unsigned i = 0; i < grads_size; ++i) {
             const segment_grad& grad = triplet_first.m_fseg_1[i];
-            
-            grads_theta[i] = grad.f_theta + grad.f_tau + c_3D * grad.f_rho_theta;
-            grads_phi[i] = grad.f_phi + 0.5f * (grad.f_nu + c_3D * grad.f_rho_phi);
-            
-            unsigned idx = i/static_cast<unsigned>(m_max_dims) + static_cast<unsigned>(max_nhits) * (i%static_cast<unsigned>(m_max_dims));
-            
+
+            grads_theta[i] =
+                grad.f_theta + grad.f_tau + c_3D * grad.f_rho_theta;
+            grads_phi[i] =
+                grad.f_phi + 0.5f * (grad.f_nu + c_3D * grad.f_rho_phi);
+
+            unsigned idx = i / static_cast<unsigned>(m_max_dims) +
+                           static_cast<unsigned>(max_nhits) *
+                               (i % static_cast<unsigned>(m_max_dims));
+
             d_theta -= getter::element(hit_loc_pulls, idx, 0u) * grads_theta[i];
             d_phi -= getter::element(hit_loc_pulls, idx, 0u) * grads_phi[i];
 
-            d_rho_theta += getter::element(hit_loc_pulls, idx, 0u) * grad.f_rho_theta;
-            d_rho_phi += getter::element(hit_loc_pulls, idx, 0u) * grad.f_rho_phi;
+            d_rho_theta +=
+                getter::element(hit_loc_pulls, idx, 0u) * grad.f_rho_theta;
+            d_rho_phi +=
+                getter::element(hit_loc_pulls, idx, 0u) * grad.f_rho_phi;
         }
-        
+
         // Apply track angle corrections from hit shifts
         theta += d_theta;
         phi = delta_phi(phi + d_phi, 0.f);
@@ -843,8 +879,8 @@ class triplet_fitter {
         // Set momentum (q/p)
 
         const auto B_field = m_field.at(triplet_first.m_hit_pos[0][0u],
-                                triplet_first.m_hit_pos[0][1u],
-                                triplet_first.m_hit_pos[0][2u]);
+                                        triplet_first.m_hit_pos[0][1u],
+                                        triplet_first.m_hit_pos[0][2u]);
         vector3 B_vec;
         B_vec[0u] = B_field[0u];
         B_vec[1u] = B_field[1u];
@@ -855,21 +891,24 @@ class triplet_fitter {
         //-------------------------------------------------
         // Magentic field to be converted from traccc native to Tesla
         scalar p = mom_conv * algebra::cmath::norm(B_vec) /
-                    (c_3D * unit<scalar>::mm * unit<scalar>::T * 1000.f); // GeV (native)
-        
+                   (c_3D * unit<scalar>::mm * unit<scalar>::T *
+                    1000.f);  // GeV (native)
+
         const scalar q = 1.f;
         fitted_params.set_qop(q / p);
 
-        
         // Post-fit position of first hit
 
         const auto& m0 = measurements.at(triplet_first.m_meas_idx[0]);
 
         point2 loc0{m0.local_position()[0], m0.local_position()[1]};
-        point2 loc0_post_fit = loc0 + point2{getter::element(hit_loc_pulls, 0u, 0u), getter::element(hit_loc_pulls, max_nhits, 0u)}; // check sign: - ??
+        point2 loc0_post_fit =
+            loc0 + point2{getter::element(hit_loc_pulls, 0u, 0u),
+                          getter::element(hit_loc_pulls, max_nhits,
+                                          0u)};  // check sign: - ??
 
         fitted_params.set_bound_local(loc0_post_fit);
-        
+
         // Track angle covariances
         scalar sum_thth{};
         scalar sum_phph{};
@@ -877,60 +916,77 @@ class triplet_fitter {
         // Track angle - curvature covariances
         scalar sum_c3D_th{};
         scalar sum_c3D_ph{};
-        
-        
+
         for (unsigned h1 = 0; h1 < grads_size; ++h1) {
-            
-            unsigned idx1 = h1/static_cast<unsigned>(m_max_dims) + static_cast<unsigned>(max_nhits) * (h1%static_cast<unsigned>(m_max_dims));
-            
-            sum_c3D_th += getter::element(hit_loc_corr_mixed, idx1, 0u) * grads_theta[h1];
-            sum_c3D_ph += getter::element(hit_loc_corr_mixed, idx1, 0u) * grads_phi[h1];
-            
+
+            unsigned idx1 = h1 / static_cast<unsigned>(m_max_dims) +
+                            static_cast<unsigned>(max_nhits) *
+                                (h1 % static_cast<unsigned>(m_max_dims));
+
+            sum_c3D_th +=
+                getter::element(hit_loc_corr_mixed, idx1, 0u) * grads_theta[h1];
+            sum_c3D_ph +=
+                getter::element(hit_loc_corr_mixed, idx1, 0u) * grads_phi[h1];
+
             for (unsigned h2 = 0u; h2 < grads_size; ++h2) {
 
-                unsigned idx2 = h2/static_cast<unsigned>(m_max_dims) + static_cast<unsigned>(max_nhits) * (h2%static_cast<unsigned>(m_max_dims));
+                unsigned idx2 = h2 / static_cast<unsigned>(m_max_dims) +
+                                static_cast<unsigned>(max_nhits) *
+                                    (h2 % static_cast<unsigned>(m_max_dims));
 
-                sum_thth += getter::element(hit_loc_corrmatrix, idx1, idx2) * grads_theta[h1] * grads_theta[h2];
-                sum_thph += getter::element(hit_loc_corrmatrix, idx1, idx2) * grads_theta[h1] * grads_phi[h2];
-                sum_phph += getter::element(hit_loc_corrmatrix, idx1, idx2) * grads_phi[h1] * grads_phi[h2];
-
+                sum_thth += getter::element(hit_loc_corrmatrix, idx1, idx2) *
+                            grads_theta[h1] * grads_theta[h2];
+                sum_thph += getter::element(hit_loc_corrmatrix, idx1, idx2) *
+                            grads_theta[h1] * grads_phi[h2];
+                sum_phph += getter::element(hit_loc_corrmatrix, idx1, idx2) *
+                            grads_phi[h1] * grads_phi[h2];
             }
         }
-        
+
         // Theta and Phi variance
-        scalar var_theta = sum_thth - 2.f * sum_c3D_th * rho_theta + var_c_3D * rho_theta * rho_theta;
-        scalar var_phi = sum_phph - 2.f * sum_c3D_ph * rho_phi + var_c_3D * rho_phi * rho_phi;
-        
+        scalar var_theta = sum_thth - 2.f * sum_c3D_th * rho_theta +
+                           var_c_3D * rho_theta * rho_theta;
+        scalar var_phi = sum_phph - 2.f * sum_c3D_ph * rho_phi +
+                         var_c_3D * rho_phi * rho_phi;
+
         // Theta-Phi covariance
-        // scalar cov_theta_phi = sum_thph - sum_c3D_th * rho_phi - sum_c3D_ph * rho_theta + rho_theta * rho_phi * var_c_3D;
-        
+        // scalar cov_theta_phi = sum_thph - sum_c3D_th * rho_phi - sum_c3D_ph *
+        // rho_theta + rho_theta * rho_phi * var_c_3D;
+
         // Curvature-Theta/Phi covariance
         // scalar cov_c3D_theta = var_c_3D * rho_theta - sum_c3D_th;
-        // scalar cov_c3D_phi = var_c_3D * rho_phi - sum_c3D_ph; 
-        
+        // scalar cov_c3D_phi = var_c_3D * rho_phi - sum_c3D_ph;
+
         // Covariance delta with theta/phi
-        
+
         // variance of hit positions (for 1st hit)
         std::array<scalar, m_max_dims> var_pos_postFit;
-        
+
         for (unsigned dir_i = 0; dir_i < m_max_dims; ++dir_i) {
-            unsigned idx = dir_i * max_nhits; // hit_i = 0
-            var_pos_postFit[dir_i] = getter::element(hit_loc_corrmatrix, idx, idx) * measurements.at(triplet_first.m_meas_idx[0]).local_variance()[dir_i]; 
+            unsigned idx = dir_i * max_nhits;  // hit_i = 0
+            var_pos_postFit[dir_i] =
+                getter::element(hit_loc_corrmatrix, idx, idx) *
+                measurements.at(triplet_first.m_meas_idx[0])
+                    .local_variance()[dir_i];
         }
-        
+
         // Covariance matrix
         matrix_type<6u, 6u> fit_cov{};
 
-        getter::element(fit_cov, e_bound_loc0, e_bound_loc0) = var_pos_postFit[0u];
-        getter::element(fit_cov, e_bound_loc1, e_bound_loc1) = var_pos_postFit[1u];
+        getter::element(fit_cov, e_bound_loc0, e_bound_loc0) =
+            var_pos_postFit[0u];
+        getter::element(fit_cov, e_bound_loc1, e_bound_loc1) =
+            var_pos_postFit[1u];
 
         getter::element(fit_cov, e_bound_phi, e_bound_phi) = var_phi;
         getter::element(fit_cov, e_bound_theta, e_bound_theta) = var_theta;
 
-        getter::element(fit_cov, e_bound_qoverp, e_bound_qoverp) = var_c_3D * unit<scalar>::mm2 / math::pow( (mom_conv * algebra::cmath::norm(B_vec))/ unit<scalar>::T, 2.f);
+        getter::element(fit_cov, e_bound_qoverp, e_bound_qoverp) =
+            var_c_3D * unit<scalar>::mm2 /
+            math::pow(
+                (mom_conv * algebra::cmath::norm(B_vec)) / unit<scalar>::T,
+                2.f);
         getter::element(fit_cov, e_bound_time, e_bound_time) = 0;
-
-
 
         // Store final results
         track.chi2() = chi2;
@@ -947,7 +1003,8 @@ class triplet_fitter {
         // at the first measurement are
         // used for performance plots
         // see fitting_performance_writer
-        typename edm::track_state_collection<algebra_type>::host::object_type out_state{};
+        typename edm::track_state_collection<algebra_type>::host::object_type
+            out_state{};
 
         out_state.smoothed_chi2() = chi2;
         out_state.smoothed_params().set_vector(fitted_params.vector());
@@ -963,10 +1020,11 @@ class triplet_fitter {
     /// @param track track object being fitted
     /// @return fitted track state at first surface
     ///
-    TRACCC_HOST_DEVICE 
+    TRACCC_HOST_DEVICE
     typename edm::track_state_collection<algebra_type>::host::object_type fit(
         typename edm::track_collection<algebra_type>::host::proxy_type& track,
-        typename edm::measurement_collection<algebra_type>::const_device measurements) {
+        typename edm::measurement_collection<algebra_type>::const_device
+            measurements) {
 
         for (triplet& t : m_triplets) {
 

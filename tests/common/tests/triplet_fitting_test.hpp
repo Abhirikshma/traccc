@@ -97,7 +97,6 @@ class TripletFittingTests : public testing::Test {
     std::size_t count_successfully_fitted_tracks(
         const edm::track_collection<default_algebra>::host& tracks) const;
 
-
     // The number of tracks successful with KF
     std::size_t n_success{0u};
 };

@@ -30,8 +30,7 @@ namespace traccc::host {
 /// Triplet based track fitting algorithm
 class triplet_fitting_algorithm
     : public algorithm<edm::track_container<default_algebra>::host(
-          const host_detector&,
-          const magnetic_field&,
+          const host_detector&, const magnetic_field&,
           const edm::track_container<default_algebra>::const_view&)>,
       public messaging {
 
@@ -57,10 +56,9 @@ class triplet_fitting_algorithm
     /// @return A container of the fitted track states
     ///
     output_type operator()(
-        const host_detector& det,
-        const magnetic_field& field,
-        const edm::track_container<default_algebra>::const_view& track_candidates)
-        const override;
+        const host_detector& det, const magnetic_field& field,
+        const edm::track_container<default_algebra>::const_view&
+            track_candidates) const override;
 
     private:
     /// Algorithm configuration

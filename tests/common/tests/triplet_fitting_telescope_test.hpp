@@ -8,8 +8,8 @@
 #pragma once
 
 // Project include(s).
-#include "triplet_fitting_test.hpp"
 #include "test_detectors.hpp"
+#include "triplet_fitting_test.hpp"
 
 // Detray include(s).
 #include <detray/io/frontend/detector_writer.hpp>

@@ -63,10 +63,10 @@ void TripletFittingTests::pull_value_tests(
 
         // Set the mean seed to 0
         gaus.SetParameters(1, 0.);
-        gaus.SetParLimits(1, -5., 5.); // -1., 1.
+        gaus.SetParLimits(1, -5., 5.);  // -1., 1.
         // Set the standard deviation seed to 1
         gaus.SetParameters(2, 1.0);
-        gaus.SetParLimits(2, 0.1, 5.); // 0.5, 2.
+        gaus.SetParLimits(2, 0.1, 5.);  // 0.5, 2.
 
         auto res = pull_dist->Fit("gaus", "Q0S");
 
@@ -83,8 +83,8 @@ void TripletFittingTests::pull_value_tests(
 #endif  // TRACCC_HAVE_ROOT
 }
 
-void TripletFittingTests::p_value_tests([
-    [maybe_unused]] std::string_view file_name) const {
+void TripletFittingTests::p_value_tests(
+    [[maybe_unused]] std::string_view file_name) const {
 
 #ifdef TRACCC_HAVE_ROOT
     // Open the file with the histograms.
@@ -152,16 +152,16 @@ void TripletFittingTests::ndf_tests(
             // for the Triplet fit
             if (!state.is_hole()) {
 
-                dim_sum += static_cast<scalar>(measurements.at(state.measurement_index()).dimensions());
+                dim_sum += static_cast<scalar>(
+                    measurements.at(state.measurement_index()).dimensions());
                 n_effective_states++;
             }
-        
+
         } else if (type == edm::track_constituent_link::measurement) {
             dim_sum += static_cast<scalar>(measurements.at(index).dimensions());
         } else {
             GTEST_FAIL();
         }
-        
     }
 
     // Check if the number of degree of freedoms is equal to (the sum of
@@ -190,6 +190,5 @@ std::size_t TripletFittingTests::count_successfully_fitted_tracks(
 
     return n_fitted_tracks;
 }
-
 
 }  // namespace traccc
