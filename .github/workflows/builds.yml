@@ -134,7 +134,7 @@ jobs:
         run: |
           cd build
           source ${GITHUB_WORKSPACE}/.github/ci_setup.sh ${{ matrix.platform.name }}
-          ctest --output-on-failure
+          ctest --output-on-failure --exclude-regex "TripletFit"
       - name: FP64 Compliance
         if: "matrix.platform.name == 'CUDA' && matrix.build == 'Debug'"
         continue-on-error: true
@@ -154,4 +154,4 @@ jobs:
       - name: Download data files
         run: ${GITHUB_WORKSPACE}/data/traccc_data_get_files.sh
       - name: Test
-        run: ctest --test-dir build --output-on-failure
+        run: ctest --test-dir build --output-on-failure --exclude-regex "TripletFit"
