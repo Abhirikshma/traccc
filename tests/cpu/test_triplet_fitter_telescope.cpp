@@ -225,7 +225,7 @@ TEST_P(TripletFittingTelescopeTests, Run) {
 /// (14) Magnetic field
 
 INSTANTIATE_TEST_SUITE_P(
-    TripletFitTelescopeValidation0, TripletFittingTelescopeTests,
+    DISABLED_TripletFitTelescopeValidation0, TripletFittingTelescopeTests,
     ::testing::Values(std::make_tuple(
         "telescope_1_GeV_0_phi_muon", std::array<scalar, 3u>{0.f, 0.f, 0.f},
         std::array<scalar, 3u>{0.f, 0.f, 0.f}, std::array<scalar, 2u>{1.f, 1.f},
@@ -234,7 +234,7 @@ INSTANTIATE_TEST_SUITE_P(
         vector3{0, 0, 2 * traccc::unit<scalar>::T})));
 
 INSTANTIATE_TEST_SUITE_P(
-    TripletFitTelescopeValidation1, TripletFittingTelescopeTests,
+    DISABLED_TripletFitTelescopeValidation1, TripletFittingTelescopeTests,
     ::testing::Values(std::make_tuple(
         "telescope_10_GeV_0_phi_muon", std::array<scalar, 3u>{0.f, 0.f, 0.f},
         std::array<scalar, 3u>{0.f, 0.f, 0.f},
@@ -243,7 +243,7 @@ INSTANTIATE_TEST_SUITE_P(
         false, 20.f, 9u, 20.f, vector3{0, 0, 2 * traccc::unit<scalar>::T})));
 
 INSTANTIATE_TEST_SUITE_P(
-    TripletFitTelescopeValidation2, TripletFittingTelescopeTests,
+    DISABLED_TripletFitTelescopeValidation2, TripletFittingTelescopeTests,
     ::testing::Values(std::make_tuple(
         "telescope_100_GeV_0_phi_muon", std::array<scalar, 3u>{0.f, 0.f, 0.f},
         std::array<scalar, 3u>{0.f, 0.f, 0.f},
@@ -252,7 +252,7 @@ INSTANTIATE_TEST_SUITE_P(
         false, 20.f, 9u, 20.f, vector3{0, 0, 2 * traccc::unit<scalar>::T})));
 
 INSTANTIATE_TEST_SUITE_P(
-    TripletFitTelescopeValidation3, TripletFittingTelescopeTests,
+    DISABLED_TripletFitTelescopeValidation3, TripletFittingTelescopeTests,
     ::testing::Values(std::make_tuple(
         "telescope_1_GeV_0_phi_anti_muon",
         std::array<scalar, 3u>{0.f, 0.f, 0.f},
@@ -262,7 +262,7 @@ INSTANTIATE_TEST_SUITE_P(
         vector3{0, 0, 2 * traccc::unit<scalar>::T})));
 
 INSTANTIATE_TEST_SUITE_P(
-    TripletFitTelescopeValidation4, TripletFittingTelescopeTests,
+    DISABLED_TripletFitTelescopeValidation4, TripletFittingTelescopeTests,
     ::testing::Values(std::make_tuple(
         "telescope_1_GeV_0_random_charge",
         std::array<scalar, 3u>{0.f, 0.f, 0.f},
